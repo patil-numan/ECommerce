@@ -26,7 +26,9 @@ public class CustomWebApplicationFactory
                     options.DefaultChallengeScheme =
                         TestAuthenticationHandler.AuthenticationScheme;
                 })
-                .AddScheme<AuthenticationSchemeOptions, TestAuthenticationHandler>(
+                .AddScheme<
+                    AuthenticationSchemeOptions,
+                    TestAuthenticationHandler>(
                     TestAuthenticationHandler.AuthenticationScheme,
                     _ => { });
         });
@@ -46,8 +48,14 @@ public class TestAuthenticationHandler
     {
     }
 
-    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    protected override Task<AuthenticateResult>
+        HandleAuthenticateAsync()
     {
+        var role =
+            Request.Headers["X-Test-Role"]
+                .FirstOrDefault()
+            ?? "Customer";
+
         var claims = new[]
         {
             new Claim(
@@ -60,18 +68,20 @@ public class TestAuthenticationHandler
 
             new Claim(
                 ClaimTypes.Role,
-                "Customer")
+                role)
         };
 
         var identity = new ClaimsIdentity(
             claims,
             AuthenticationScheme);
 
-        var principal = new ClaimsPrincipal(identity);
+        var principal =
+            new ClaimsPrincipal(identity);
 
-        var ticket = new AuthenticationTicket(
-            principal,
-            AuthenticationScheme);
+        var ticket =
+            new AuthenticationTicket(
+                principal,
+                AuthenticationScheme);
 
         return Task.FromResult(
             AuthenticateResult.Success(ticket));

@@ -12,5 +12,7 @@ public interface IProductRepository
 
     Task UpdateAsync(Product product);
 
+    Task UpdateRangeAsync(IEnumerable<Product> products);
+
     Task DeleteAsync(int id);
 }

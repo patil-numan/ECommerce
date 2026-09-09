@@ -4,6 +4,9 @@ public class Product
 {
     public int Id { get; set; }
 
+    // Unique business identifier used for Excel bulk updates.
+    public string SKU { get; set; } = string.Empty;
+
     public string Name { get; set; } = string.Empty;
 
     public string Description { get; set; } = string.Empty;

@@ -18,4 +18,8 @@ public interface IProductService
         UpdateProductDto dto);
 
     Task<bool> DeleteAsync(int id);
+
+    // Bulk admin operation
+    Task<BulkProductUpdateResultDto> BulkUpdateAsync(
+        Stream fileStream);
 }

@@ -120,4 +120,66 @@ public class ProductsController : ControllerBase
 
         return NoContent();
     }
+
+    // =========================================================
+    // BULK PRODUCT UPDATE FROM EXCEL - ADMIN
+    // =========================================================
+
+    // POST: api/Products/bulk-update
+    [HttpPost("bulk-update")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> BulkUpdateProducts(
+        IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(new
+            {
+                message = "Please upload an Excel file."
+            });
+        }
+
+        var extension =
+            Path.GetExtension(file.FileName);
+
+        if (!extension.Equals(
+                ".xlsx",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new
+            {
+                message =
+                    "Only .xlsx Excel files are supported."
+            });
+        }
+
+        try
+        {
+            await using var stream =
+                file.OpenReadStream();
+
+            var result =
+                await _productService
+                    .BulkUpdateAsync(stream);
+
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (Exception)
+        {
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                new
+                {
+                    message =
+                        "An error occurred while processing the Excel file."
+                });
+        }
+    }
 }

@@ -29,9 +29,15 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
+
         modelBuilder.Entity<Product>()
             .Property(p => p.Price)
             .HasPrecision(18, 2);
+
+        modelBuilder.Entity<Product>()
+            .HasIndex(p => p.SKU)
+            .IsUnique();
 
         modelBuilder.Entity<Product>()
             .HasOne(p => p.Category)
@@ -40,10 +46,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<OrderItem>()
-    .HasOne(oi => oi.Order)
-    .WithMany(o => o.OrderItems)
-    .HasForeignKey(oi => oi.OrderId)
-    .OnDelete(DeleteBehavior.Cascade);
+            .HasOne(oi => oi.Order)
+            .WithMany(o => o.OrderItems)
+            .HasForeignKey(oi => oi.OrderId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<OrderItem>()
             .HasOne(oi => oi.Product)
@@ -84,7 +90,5 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         modelBuilder.Entity<Cart>()
             .HasIndex(c => c.UserId)
             .IsUnique();
-
-        base.OnModelCreating(modelBuilder);
     }
 }
