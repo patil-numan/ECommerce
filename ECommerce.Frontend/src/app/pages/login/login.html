@@ -1,0 +1,100 @@
+<main class="login-page">
+
+  <div class="login-container">
+
+    <section class="login-card">
+
+      <div class="login-header">
+
+        <p class="eyebrow">
+          ACCOUNT
+        </p>
+
+        <h1>
+          Welcome back
+        </h1>
+
+        <p class="login-description">
+          Sign in to continue to your account.
+        </p>
+
+      </div>
+
+      @if (error) {
+        <div class="login-error">
+          {{ error }}
+        </div>
+      }
+
+      <form
+        class="login-form"
+        (ngSubmit)="login()"
+      >
+
+        <div class="form-field">
+
+          <label for="email">
+            Email
+          </label>
+
+          <input
+            id="email"
+            type="email"
+            name="email"
+            [(ngModel)]="email"
+            placeholder="Enter your email"
+            autocomplete="email"
+            [disabled]="loading"
+          />
+
+        </div>
+
+        <div class="form-field">
+
+          <label for="password">
+            Password
+          </label>
+
+          <input
+            id="password"
+            type="password"
+            name="password"
+            [(ngModel)]="password"
+            placeholder="Enter your password"
+            autocomplete="current-password"
+            [disabled]="loading"
+          />
+
+        </div>
+
+        <button
+          type="submit"
+          class="login-button"
+          [disabled]="loading"
+        >
+          @if (loading) {
+            Signing in...
+          } @else {
+            Sign in
+          }
+        </button>
+
+      </form>
+
+      <div class="register-link">
+
+        <span>
+          Don't have an account?
+        </span>
+
+        <a routerLink="/register">
+          Create an account
+        </a>
+
+      </div>
+
+    </section>
+
+  </div>
+
+</main>

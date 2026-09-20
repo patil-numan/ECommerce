@@ -1,0 +1,61 @@
+<header class="site-header">
+
+  <div class="header-inner">
+
+    <a
+      routerLink="/"
+      class="brand"
+    >
+      ECommerce
+    </a>
+
+    <nav class="navigation">
+
+      <a routerLink="/">
+        Products
+      </a>
+
+      @if (isLoggedIn) {
+
+        <a routerLink="/orders">
+          My Orders
+        </a>
+
+      }
+
+      <a
+        routerLink="/cart"
+        class="cart-link"
+      >
+        Cart
+
+        @if (cartItemCount > 0) {
+          <span class="cart-count">
+            {{ cartItemCount }}
+          </span>
+        }
+      </a>
+
+      @if (isLoggedIn) {
+
+        <button
+          type="button"
+          class="logout-button"
+          (click)="logout()"
+        >
+          Logout
+        </button>
+
+      } @else {
+
+        <a routerLink="/login">
+          Login
+        </a>
+
+      }
+
+    </nav>
+
+  </div>
+
+</header>

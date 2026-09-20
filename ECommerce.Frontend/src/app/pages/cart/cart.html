@@ -1,0 +1,169 @@
+<app-navbar></app-navbar>
+
+<main class="cart-page">
+  <div class="cart-container">
+    <!-- CART HEADER -->
+
+    <div class="cart-header">
+      <div>
+        <p class="eyebrow">SHOPPING CART</p>
+
+        <h1>Your cart</h1>
+      </div>
+
+      @if (cartItems.length > 0) {
+        <button type="button" class="clear-button" (click)="clearCart()">Clear cart</button>
+      }
+    </div>
+
+    <!-- EMPTY CART -->
+
+    @if (cartItems.length === 0) {
+      <section class="empty-cart">
+        <h2>Your cart is empty</h2>
+
+        <p>Add some products to get started.</p>
+
+        <a routerLink="/" class="continue-button"> Continue shopping </a>
+      </section>
+    } @else {
+      <!-- CART WITH ITEMS -->
+
+      <section class="cart-content">
+        <!-- CART ITEMS -->
+
+        <div class="cart-items">
+          @for (item of cartItems; track item.product.id) {
+            <article class="cart-item">
+              <!-- PRODUCT -->
+
+              <div class="cart-item-product">
+                <span class="product-label"> PRODUCT </span>
+
+                <h2>
+                  {{ item.product.name }}
+                </h2>
+
+                <p class="product-sku">
+                  {{ item.product.sku }}
+                </p>
+              </div>
+
+              <!-- PRICE -->
+
+              <div class="cart-item-price">
+                <span class="meta-label"> PRICE </span>
+
+                <span> ₹{{ item.product.price | number: '1.2-2' }} </span>
+              </div>
+
+              <!-- QUANTITY -->
+
+              <div class="quantity-control">
+                <span class="meta-label"> QUANTITY </span>
+
+                <div class="quantity-buttons">
+                  <!-- DECREASE -->
+
+                  <button
+                    type="button"
+                    (click)="decreaseQuantity(item.product.id)"
+                    [disabled]="item.quantity <= 1"
+                    aria-label="Decrease quantity"
+                  >
+                    −
+                  </button>
+
+                  <!-- CURRENT QUANTITY -->
+
+                  <span class="quantity-value">
+                    {{ item.quantity }}
+                  </span>
+
+                  <!-- INCREASE -->
+
+                  <button
+                    type="button"
+                    (click)="increaseQuantity(item.product.id)"
+                    [disabled]="isStockLimitReached(item.product.id)"
+                    aria-label="Increase quantity"
+                  >
+                    +
+                  </button>
+                </div>
+
+                <!-- AVAILABLE STOCK -->
+
+                <span class="stock-information"> {{ item.product.stockQuantity }} available </span>
+
+                <!-- STOCK LIMIT MESSAGE -->
+
+                @if (isStockLimitReached(item.product.id)) {
+                  <span class="stock-limit-message"> Maximum available quantity </span>
+                }
+              </div>
+
+              <!-- SUBTOTAL -->
+
+              <div class="cart-item-subtotal">
+                <span class="meta-label"> SUBTOTAL </span>
+
+                <span> ₹{{ item.product.price * item.quantity | number: '1.2-2' }} </span>
+              </div>
+
+              <!-- REMOVE -->
+
+              <button type="button" class="remove-button" (click)="removeItem(item.product.id)">
+                Remove
+              </button>
+            </article>
+          }
+        </div>
+
+        <!-- ORDER SUMMARY -->
+
+        <aside class="cart-summary">
+          <p class="summary-label">ORDER SUMMARY</p>
+
+          <!-- NUMBER OF PRODUCTS -->
+
+          <div class="summary-row">
+            <span> Items </span>
+
+            <span>
+              {{ cartItems.length }}
+            </span>
+          </div>
+
+          <!-- TOTAL QUANTITY -->
+
+          <div class="summary-row">
+            <span> Total quantity </span>
+
+            <span>
+              {{ totalQuantity }}
+            </span>
+          </div>
+
+          <!-- TOTAL -->
+
+          <div class="summary-total">
+            <span> Total </span>
+
+            <strong> ₹{{ total | number: '1.2-2' }} </strong>
+          </div>
+
+          <!-- CHECKOUT -->
+
+          <a routerLink="/checkout" class="checkout-button"> Proceed to checkout </a>
+        </aside>
+      </section>
+    }
+  </div>
+</main>
+
+<!-- FOOTER -->
+
+<footer class="site-footer">
+  <p>© 2026 ECommerce</p>
+</footer>

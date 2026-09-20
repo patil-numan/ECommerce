@@ -1,0 +1,124 @@
+<main class="register-page">
+
+  <div class="register-container">
+
+    <section class="register-card">
+
+      <div class="register-header">
+
+        <p class="eyebrow">
+          ACCOUNT
+        </p>
+
+        <h1>
+          Create your account
+        </h1>
+
+        <p class="register-description">
+          Create an account to place and manage your orders.
+        </p>
+
+      </div>
+
+      @if (error) {
+        <div class="register-error">
+          {{ error }}
+        </div>
+      }
+
+      @if (success) {
+        <div class="register-success">
+          {{ success }}
+        </div>
+      }
+
+      <form
+        class="register-form"
+        (ngSubmit)="register()"
+      >
+
+        <div class="form-field">
+
+          <label for="email">
+            Email
+          </label>
+
+          <input
+            id="email"
+            type="email"
+            name="email"
+            [(ngModel)]="email"
+            placeholder="Enter your email"
+            autocomplete="email"
+            [disabled]="loading"
+          />
+
+        </div>
+
+        <div class="form-field">
+
+          <label for="password">
+            Password
+          </label>
+
+          <input
+            id="password"
+            type="password"
+            name="password"
+            [(ngModel)]="password"
+            placeholder="Enter your password"
+            autocomplete="new-password"
+            [disabled]="loading"
+          />
+
+        </div>
+
+        <div class="form-field">
+
+          <label for="confirmPassword">
+            Confirm password
+          </label>
+
+          <input
+            id="confirmPassword"
+            type="password"
+            name="confirmPassword"
+            [(ngModel)]="confirmPassword"
+            placeholder="Re-enter your password"
+            autocomplete="new-password"
+            [disabled]="loading"
+          />
+
+        </div>
+
+        <button
+          type="submit"
+          class="register-button"
+          [disabled]="loading"
+        >
+          @if (loading) {
+            Creating account...
+          } @else {
+            Create account
+          }
+        </button>
+
+      </form>
+
+      <div class="login-link">
+
+        <span>
+          Already have an account?
+        </span>
+
+        <a routerLink="/login">
+          Login
+        </a>
+
+      </div>
+
+    </section>
+
+  </div>
+
+</main>

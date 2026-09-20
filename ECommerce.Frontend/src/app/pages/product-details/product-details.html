@@ -1,0 +1,106 @@
+<app-navbar></app-navbar>
+
+<main class="product-details-page">
+  <div class="product-details-container">
+    <a routerLink="/" class="back-link"> Back to products </a>
+
+    @if (loading) {
+      <div class="details-state">
+        <p>Loading product...</p>
+      </div>
+    } @else if (error) {
+      <div class="details-state error">
+        <p>
+          {{ error }}
+        </p>
+      </div>
+    } @else if (product) {
+      <article class="product-details">
+        <!-- Product Header -->
+
+        <div class="product-details-header">
+          <p class="product-label">PRODUCT</p>
+
+          <p class="product-sku">
+            {{ product.sku }}
+          </p>
+        </div>
+
+        <!-- Main Product Information -->
+
+        <div class="product-main">
+          <div class="product-information">
+            <h1>
+              {{ product.name }}
+            </h1>
+
+            <p class="product-description">
+              {{ product.description }}
+            </p>
+          </div>
+
+          <!-- Purchase Section -->
+
+          <div class="product-purchase">
+            <p class="product-price">₹{{ product.price | number: '1.2-2' }}</p>
+
+            @if (product.stockQuantity > 0) {
+              <p class="stock available">{{ product.stockQuantity }} in stock</p>
+
+              <button
+                type="button"
+                class="add-to-cart-button"
+                (click)="addToCart()"
+                [disabled]="isStockLimitReached()"
+              >
+                @if (cartQuantity > 0) {
+                  Added to cart ({{ cartQuantity }})
+                } @else {
+                  Add to cart
+                }
+              </button>
+            } @else {
+              <p class="stock unavailable">Out of stock</p>
+
+              <button type="button" class="add-to-cart-button disabled" disabled>
+                Out of stock
+              </button>
+            }
+          </div>
+        </div>
+
+        <!-- Product Metadata -->
+
+        <div class="product-meta">
+          <div class="meta-item">
+            <span class="meta-label"> SKU </span>
+
+            <span class="meta-value">
+              {{ product.sku }}
+            </span>
+          </div>
+
+          <div class="meta-item">
+            <span class="meta-label"> Category ID </span>
+
+            <span class="meta-value">
+              {{ product.categoryId }}
+            </span>
+          </div>
+
+          <div class="meta-item">
+            <span class="meta-label"> Stock </span>
+
+            <span class="meta-value">
+              {{ product.stockQuantity }}
+            </span>
+          </div>
+        </div>
+      </article>
+    }
+  </div>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 ECommerce</p>
+</footer>

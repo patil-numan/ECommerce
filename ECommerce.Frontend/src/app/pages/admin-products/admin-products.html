@@ -1,0 +1,285 @@
+<app-navbar></app-navbar>
+
+<main class="admin-products-page">
+  <section class="page-header">
+    <div>
+      <p class="eyebrow">ADMINISTRATION</p>
+      <h1>Products</h1>
+      <p class="page-description">
+        Manage your product catalogue and import products in bulk.
+      </p>
+    </div>
+
+    <a
+      routerLink="/admin/products/new"
+      class="primary-button"
+    >
+      Add product
+    </a>
+  </section>
+
+  @if (error) {
+    <div class="message error-message">
+      {{ error }}
+    </div>
+  }
+
+  <!-- Bulk import -->
+  <section class="import-panel">
+    <div class="import-header">
+      <div>
+        <p class="section-label">BULK IMPORT</p>
+
+        <h2>Import products from Excel</h2>
+
+        <p>
+          Upload an <strong>.xlsx</strong> file to create or update
+          products using their SKU.
+        </p>
+      </div>
+    </div>
+
+    <div class="import-controls">
+      <label
+        for="excel-file"
+        class="file-button"
+      >
+        Choose Excel file
+      </label>
+
+      <input
+        id="excel-file"
+        type="file"
+        accept=".xlsx"
+        (change)="onFileSelected($event)"
+        [disabled]="uploading"
+      />
+
+      @if (selectedFile) {
+        <span class="selected-file">
+          {{ selectedFile.name }}
+        </span>
+      } @else {
+        <span class="no-file">
+          No file selected
+        </span>
+      }
+
+      <button
+        type="button"
+        class="primary-button"
+        (click)="uploadExcel()"
+        [disabled]="!selectedFile || uploading"
+      >
+        @if (uploading) {
+          Uploading...
+        } @else {
+          Upload
+        }
+      </button>
+    </div>
+
+    @if (importJobId !== null) {
+      <div class="import-status">
+        <div class="status-header">
+          <div>
+            <p class="section-label">IMPORT STATUS</p>
+
+            <h3>
+              Job #{{ importJobId }}
+            </h3>
+          </div>
+
+          <span
+            class="status-badge"
+            [class.status-completed]="importStatus === 'Completed'"
+            [class.status-failed]="importStatus === 'Failed'"
+            [class.status-processing]="importStatus === 'Processing'"
+            [class.status-pending]="importStatus === 'Pending'"
+          >
+            {{ importStatus }}
+          </span>
+        </div>
+
+        @if (importTotalRows > 0) {
+          <div class="progress-section">
+            <div class="progress-label">
+              <span>Progress</span>
+
+              <strong>
+                {{ getImportProgress() }}%
+              </strong>
+            </div>
+
+            <div class="progress-track">
+              <div
+                class="progress-bar"
+                [style.width.%]="getImportProgress()"
+              ></div>
+            </div>
+
+            <p class="progress-text">
+              {{ importProcessedRows }}
+              of
+              {{ importTotalRows }}
+              rows processed
+            </p>
+          </div>
+        }
+
+        <div class="import-summary">
+          <div class="summary-item">
+            <span>Updated</span>
+            <strong>{{ importUpdatedRows }}</strong>
+          </div>
+
+          <div class="summary-item">
+            <span>Created</span>
+            <strong>{{ importCreatedRows }}</strong>
+          </div>
+
+          <div class="summary-item">
+            <span>Failed</span>
+            <strong>{{ importFailedRows }}</strong>
+          </div>
+        </div>
+
+        @if (importErrorMessage) {
+          <div class="message error-message">
+            {{ importErrorMessage }}
+          </div>
+        }
+
+        @if (importStatus === 'Completed') {
+          <div class="message success-message">
+            Excel import completed successfully.
+            The product list has been refreshed.
+          </div>
+        }
+
+        @if (importStatus === 'Failed') {
+          <div class="message error-message">
+            Excel import failed.
+            Please check the error details and try again.
+          </div>
+        }
+      </div>
+    }
+  </section>
+
+  <!-- Products -->
+  <section class="products-section">
+    <div class="section-heading">
+      <div>
+        <p class="section-label">CATALOGUE</p>
+
+        <h2>All products</h2>
+      </div>
+
+      @if (!loading) {
+        <span class="product-count">
+          {{ filteredProducts.length }} products
+        </span>
+      }
+    </div>
+
+    <!-- Product search -->
+    <div class="product-search">
+      <input
+        type="text"
+        placeholder="Search by product name or SKU"
+        [(ngModel)]="searchTerm"
+        (keyup.enter)="searchProducts()"
+      />
+
+      <button
+        type="button"
+        class="search-button"
+        (click)="searchProducts()"
+      >
+        Search
+      </button>
+    </div>
+
+    @if (loading) {
+      <div class="loading-state">
+        Loading products...
+      </div>
+    } @else if (filteredProducts.length === 0) {
+      <div class="empty-state">
+        <h3>No products found</h3>
+
+        <p>
+          @if (appliedSearchTerm) {
+            No products match your search.
+          } @else {
+            There are currently no products in the catalogue.
+          }
+        </p>
+      </div>
+    } @else {
+      <div class="product-table">
+        <div class="table-header">
+          <span>Product</span>
+          <span>SKU</span>
+          <span>Price</span>
+          <span>Stock</span>
+          <span>Actions</span>
+        </div>
+
+        @for (product of filteredProducts; track product.id) {
+          <div class="product-row">
+            <div class="product-name">
+              <strong>{{ product.name }}</strong>
+
+              <span>
+                Category ID: {{ product.categoryId }}
+              </span>
+            </div>
+
+            <div>
+              {{ product.sku }}
+            </div>
+
+            <div>
+              ₹{{ product.price | number:'1.2-2' }}
+            </div>
+
+            <div>
+              {{ product.stockQuantity }}
+            </div>
+
+            <div class="product-actions">
+              <a
+                [routerLink]="[
+                  '/admin/products',
+                  product.id
+                ]"
+                class="view-button"
+              >
+                View
+              </a>
+
+              <button
+                type="button"
+                class="delete-button"
+                (click)="deleteProduct(product)"
+                [disabled]="
+                  deletingProductId === product.id
+                "
+              >
+                @if (
+                  deletingProductId === product.id
+                ) {
+                  Deleting...
+                } @else {
+                  Delete
+                }
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </section>
+</main>

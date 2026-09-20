@@ -1,5 +1,6 @@
 ﻿using ECommerce.Application.DTOs;
 using ECommerce.Application.Interfaces;
+using ECommerce.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,10 +12,20 @@ namespace ECommerce.API.Controllers;
 public class ProductsController : ControllerBase
 {
     private readonly IProductService _productService;
+    private readonly IFileStorageService _fileStorageService;
+    private readonly IImportJobRepository _importJobRepository;
+    private readonly IImportJobQueue _importJobQueue;
 
-    public ProductsController(IProductService productService)
+    public ProductsController(
+        IProductService productService,
+        IFileStorageService fileStorageService,
+        IImportJobRepository importJobRepository,
+        IImportJobQueue importJobQueue)
     {
         _productService = productService;
+        _fileStorageService = fileStorageService;
+        _importJobRepository = importJobRepository;
+        _importJobQueue = importJobQueue;
     }
 
     // =========================================================
@@ -23,6 +34,7 @@ public class ProductsController : ControllerBase
 
     // GET: api/Products
     [HttpGet]
+    [AllowAnonymous]
     public async Task<IActionResult> GetAllProducts()
     {
         var products =
@@ -33,6 +45,7 @@ public class ProductsController : ControllerBase
 
     // GET: api/Products/5
     [HttpGet("{id:int}")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetProduct(int id)
     {
         var product =
@@ -129,7 +142,7 @@ public class ProductsController : ControllerBase
     [HttpPost("bulk-update")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> BulkUpdateProducts(
-        IFormFile file)
+    IFormFile file)
     {
         if (file == null || file.Length == 0)
         {
@@ -158,17 +171,28 @@ public class ProductsController : ControllerBase
             await using var stream =
                 file.OpenReadStream();
 
-            var result =
-                await _productService
-                    .BulkUpdateAsync(stream);
+            var filePath =
+                await _fileStorageService.SaveFileAsync(
+                    stream,
+                    file.FileName);
 
-            return Ok(result);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new
+            var importJob = new ImportJob
             {
-                message = ex.Message
+                FileName = file.FileName,
+                FilePath = filePath,
+                Status = "Pending",
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _importJobRepository.AddAsync(importJob);
+
+            await _importJobQueue.QueueAsync(importJob.Id);
+
+            return Accepted(new
+            {
+                message =
+                    "Excel file uploaded successfully. Import has been queued.",
+                jobId = importJob.Id
             });
         }
         catch (Exception)
@@ -178,8 +202,43 @@ public class ProductsController : ControllerBase
                 new
                 {
                     message =
-                        "An error occurred while processing the Excel file."
+                        "An error occurred while creating the import job."
                 });
         }
+    }
+
+    [HttpGet("import-jobs/{jobId}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetImportJobStatus(
+    int jobId)
+    {
+        var importJob =
+            await _importJobRepository.GetByIdAsync(jobId);
+
+        if (importJob is null)
+        {
+            return NotFound(new
+            {
+                message = "Import job not found."
+            });
+        }
+
+        var result =
+            new ImportJobStatusDto
+            {
+                JobId = importJob.Id,
+                FileName = importJob.FileName,
+                Status = importJob.Status,
+                TotalRows = importJob.TotalRows,
+                ProcessedRows = importJob.ProcessedRows,
+                UpdatedRows = importJob.UpdatedRows,
+                CreatedRows = importJob.CreatedRows,
+                FailedRows = importJob.FailedRows,
+                ErrorMessage = importJob.ErrorMessage,
+                CreatedAt = importJob.CreatedAt,
+                CompletedAt = importJob.CompletedAt
+            };
+
+        return Ok(result);
     }
 }

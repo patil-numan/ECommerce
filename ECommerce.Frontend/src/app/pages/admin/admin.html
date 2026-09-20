@@ -1,0 +1,184 @@
+<app-navbar></app-navbar>
+
+<main class="admin-page">
+
+  <div class="admin-container">
+
+    <header class="admin-header">
+
+      <div>
+        <p class="eyebrow">
+          ADMINISTRATION
+        </p>
+
+        <h1>
+          Admin dashboard
+        </h1>
+
+        <p class="admin-description">
+          Manage customer orders and monitor order activity.
+        </p>
+      </div>
+
+    </header>
+
+    @if (loading) {
+
+      <section class="admin-state">
+        <p>Loading orders...</p>
+      </section>
+
+    } @else if (error) {
+
+      <section class="admin-state error-state">
+
+        <h2>
+          Unable to load orders
+        </h2>
+
+        <p>
+          {{ error }}
+        </p>
+
+      </section>
+
+    } @else {
+
+      <section class="admin-summary">
+
+        <div class="summary-card">
+
+          <span class="summary-label">
+            TOTAL ORDERS
+          </span>
+
+          <strong>
+            {{ orders.length }}
+          </strong>
+
+        </div>
+
+      </section>
+
+      @if (orders.length === 0) {
+
+        <section class="admin-state">
+
+          <h2>
+            No orders
+          </h2>
+
+          <p>
+            There are currently no customer orders.
+          </p>
+
+        </section>
+
+      } @else {
+
+        <section class="orders-section">
+
+          <div class="section-header">
+
+            <div>
+              <p class="section-label">
+                ORDER MANAGEMENT
+              </p>
+
+              <h2>
+                Customer orders
+              </h2>
+            </div>
+
+          </div>
+
+          <div class="orders-table">
+
+            <div class="table-header">
+
+              <span>
+                ORDER
+              </span>
+
+              <span>
+                CUSTOMER
+              </span>
+
+              <span>
+                DATE
+              </span>
+
+              <span>
+                TOTAL
+              </span>
+
+              <span>
+                STATUS
+              </span>
+
+              <span>
+                ACTION
+              </span>
+
+            </div>
+
+            @for (
+              order of orders;
+              track order.id
+            ) {
+
+              <div class="table-row">
+
+                <span class="order-number">
+                  #{{ order.id }}
+                </span>
+
+                <span class="customer-id">
+                  {{ order.userId }}
+                </span>
+
+                <span>
+                  {{ order.orderDate | date:'mediumDate' }}
+                </span>
+
+                <strong>
+                  ₹{{ order.totalAmount | number:'1.2-2' }}
+                </strong>
+
+                <span class="status">
+                  {{ order.status }}
+                </span>
+
+                <a
+                  [routerLink]="[
+                    '/admin/orders',
+                    order.id
+                  ]"
+                  class="view-button"
+                >
+                  View
+                </a>
+
+              </div>
+
+            }
+
+          </div>
+
+        </section>
+
+      }
+
+    }
+
+  </div>
+
+</main>
+
+<footer class="site-footer">
+
+  <p>
+    © 2026 ECommerce
+  </p>
+
+</footer>

@@ -7,8 +7,7 @@ using Xunit;
 
 namespace ECommerce.IntegrationTests;
 
-public class ProductsApiTests
-    : IClassFixture<CustomWebApplicationFactory>
+public class ProductsApiTests : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client;
 
@@ -18,86 +17,101 @@ public class ProductsApiTests
         _client = factory.CreateClient();
     }
 
-    // =========================================================
-    // GET PRODUCTS
-    // =========================================================
-
     [Fact]
-    public async Task GetProducts_WithAuthenticatedCustomer_ReturnsSuccess()
+    public async Task GetProducts_WithCustomerRole_ReturnsSuccess()
     {
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Get,
+                "/api/products");
+
+        request.Headers.Add(
+            "X-Test-Role",
+            "Customer");
+
         var response =
-            await _client.GetAsync("/api/products");
+            await _client.SendAsync(request);
 
         Assert.Equal(
             HttpStatusCode.OK,
             response.StatusCode);
-    }
 
-    // =========================================================
-    // CREATE PRODUCT
-    // =========================================================
+        var products =
+            await response.Content
+                .ReadFromJsonAsync<List<ProductDto>>();
+
+        Assert.NotNull(products);
+    }
 
     [Fact]
     public async Task CreateProduct_WithCustomerRole_ReturnsForbidden()
     {
-        var dto = new CreateProductDto
-        {
-            Name = "Integration Test Product",
-            Description = "Test product",
-            Price = 100m,
-            CategoryId = 1,
-            StockQuantity = 10
-        };
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                "/api/products");
+
+        request.Headers.Add(
+            "X-Test-Role",
+            "Customer");
+
+        request.Content =
+            JsonContent.Create(
+                new
+                {
+                    Name = "Test Product",
+                    SKU = "TEST-001",
+                    Price = 1000m,
+                    StockQuantity = 10,
+                    CategoryId = 1
+                });
 
         var response =
-            await _client.PostAsJsonAsync(
-                "/api/products",
-                dto);
+            await _client.SendAsync(request);
 
         Assert.Equal(
             HttpStatusCode.Forbidden,
             response.StatusCode);
     }
-
-    // =========================================================
-    // BULK UPDATE - CUSTOMER AUTHORIZATION
-    // =========================================================
 
     [Fact]
     public async Task BulkUpdate_WithCustomerRole_ReturnsForbidden()
     {
         using var excelStream =
             CreateExcelStream(
-                new[]
+                new List<BulkProductRowDto>
                 {
-                    new[]
+                    new BulkProductRowDto
                     {
-                        "LAP-001",
-                        "Updated Laptop",
-                        "75000",
-                        "20",
-                        "Electronics"
+                        SKU = "TEST-001",
+                        Name = "Test Product",
+                        Price = 1000m,
+                        StockQuantity = 10,
+                        Category = "Test Category"
                     }
                 });
 
-        using var content =
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                "/api/products/bulk-update");
+
+        request.Headers.Add(
+            "X-Test-Role",
+            "Customer");
+
+        request.Content =
             CreateMultipartContent(
                 excelStream,
-                "products.xlsx");
+                "test.xlsx");
 
         var response =
-            await _client.PostAsync(
-                "/api/products/bulk-update",
-                content);
+            await _client.SendAsync(request);
 
         Assert.Equal(
             HttpStatusCode.Forbidden,
             response.StatusCode);
     }
-
-    // =========================================================
-    // BULK UPDATE - EMPTY FILE
-    // =========================================================
 
     [Fact]
     public async Task BulkUpdate_WithEmptyFile_ReturnsBadRequest()
@@ -105,29 +119,31 @@ public class ProductsApiTests
         using var content =
             new MultipartFormDataContent();
 
-        using var emptyContent =
-            new ByteArrayContent(
-                Array.Empty<byte>());
+        using var emptyStream =
+            new MemoryStream();
 
-        emptyContent.Headers.ContentType =
+        using var fileContent =
+            new StreamContent(emptyStream);
+
+        fileContent.Headers.ContentType =
             new MediaTypeHeaderValue(
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
 
         content.Add(
-            emptyContent,
+            fileContent,
             "file",
-            "products.xlsx");
+            "empty.xlsx");
 
         using var request =
             new HttpRequestMessage(
                 HttpMethod.Post,
                 "/api/products/bulk-update");
 
-        request.Content = content;
-
         request.Headers.Add(
             "X-Test-Role",
             "Admin");
+
+        request.Content = content;
 
         var response =
             await _client.SendAsync(request);
@@ -136,10 +152,6 @@ public class ProductsApiTests
             HttpStatusCode.BadRequest,
             response.StatusCode);
     }
-
-    // =========================================================
-    // BULK UPDATE - INVALID FILE TYPE
-    // =========================================================
 
     [Fact]
     public async Task BulkUpdate_WithNonExcelFile_ReturnsBadRequest()
@@ -147,29 +159,25 @@ public class ProductsApiTests
         using var content =
             new MultipartFormDataContent();
 
-        var fileContent =
-            new ByteArrayContent(
-                "This is not an Excel file."u8.ToArray());
-
-        fileContent.Headers.ContentType =
-            new MediaTypeHeaderValue(
-                "text/plain");
+        var textContent =
+            new StringContent(
+                "This is not an Excel file.");
 
         content.Add(
-            fileContent,
+            textContent,
             "file",
-            "products.txt");
+            "test.txt");
 
         using var request =
             new HttpRequestMessage(
                 HttpMethod.Post,
                 "/api/products/bulk-update");
 
-        request.Content = content;
-
         request.Headers.Add(
             "X-Test-Role",
             "Admin");
+
+        request.Content = content;
 
         var response =
             await _client.SendAsync(request);
@@ -179,19 +187,225 @@ public class ProductsApiTests
             response.StatusCode);
     }
 
-    // =========================================================
-    // BULK UPDATE - VALID ADMIN REQUEST
-    // =========================================================
+    [Fact]
+    public async Task BulkUpdate_WithAdminRoleAndValidExcel_ReturnsAccepted()
+    {
+        using var excelStream =
+            CreateExcelStream(
+                new List<BulkProductRowDto>
+                {
+                    new BulkProductRowDto
+                    {
+                        SKU = "LAP-001",
+                        Name = "Integration Laptop",
+                        Price = 85000m,
+                        StockQuantity = 10,
+                        Category = "Electronics"
+                    }
+                });
+
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                "/api/products/bulk-update");
+
+        request.Headers.Add(
+            "X-Test-Role",
+            "Admin");
+
+        request.Content =
+            CreateMultipartContent(
+                excelStream,
+                "bulk-test.xlsx");
+
+        var response =
+            await _client.SendAsync(request);
+
+        Assert.Equal(
+            HttpStatusCode.Accepted,
+            response.StatusCode);
+
+        var responseBody =
+            await response.Content
+                .ReadFromJsonAsync<ImportJobResponse>();
+
+        Assert.NotNull(responseBody);
+
+        Assert.True(
+            responseBody.JobId > 0);
+
+        var jobStatus =
+            await WaitForImportJobAsync(
+                responseBody.JobId);
+
+        Assert.NotNull(jobStatus);
+
+        Assert.Equal(
+            "Completed",
+            jobStatus.Status);
+
+        Assert.Equal(
+            1,
+            jobStatus.TotalRows);
+
+        Assert.Equal(
+            1,
+            jobStatus.ProcessedRows);
+
+        Assert.Equal(
+            1,
+            jobStatus.UpdatedRows);
+
+        Assert.Equal(
+            0,
+            jobStatus.CreatedRows);
+
+        Assert.Equal(
+            0,
+            jobStatus.FailedRows);
+    }
 
     [Fact]
-    public async Task BulkUpdate_WithAdminRoleAndValidExcel_ReturnsSuccess()
+    public async Task BulkUpdate_WithNewProductAndCategory_CreatesBoth()
     {
-        // -----------------------------------------------------
-        // Get existing products
-        // -----------------------------------------------------
+        /*
+         * Generate unique values for every test run.
+         *
+         * This prevents the test from accidentally finding
+         * a product/category created by an earlier test run.
+         */
+        var uniqueId =
+            Guid.NewGuid().ToString("N");
+
+        var sku =
+            $"INTEGRATION-NEW-{uniqueId}";
+
+        var productName =
+            $"Integration New Product {uniqueId}";
+
+        var categoryName =
+            $"Integration New Category {uniqueId}";
+
+        const decimal price =
+            12345m;
+
+        const int stockQuantity =
+            25;
+
+        /*
+         * Create the Excel file.
+         */
+        using var excelStream =
+            CreateExcelStream(
+                new List<BulkProductRowDto>
+                {
+                    new BulkProductRowDto
+                    {
+                        SKU = sku,
+                        Name = productName,
+                        Price = price,
+                        StockQuantity = stockQuantity,
+                        Category = categoryName
+                    }
+                });
+
+        /*
+         * Create the HTTP request.
+         */
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                "/api/products/bulk-update");
+
+        /*
+         * The endpoint requires the Admin role.
+         */
+        request.Headers.Add(
+            "X-Test-Role",
+            "Admin");
+
+        request.Content =
+            CreateMultipartContent(
+                excelStream,
+                "new-product-test.xlsx");
+
+        /*
+         * Send the Excel file to the API.
+         */
+        var response =
+            await _client.SendAsync(request);
+
+        /*
+         * Because the import runs in the background,
+         * the API should immediately return 202 Accepted.
+         */
+        Assert.Equal(
+            HttpStatusCode.Accepted,
+            response.StatusCode);
+
+        /*
+         * Read the job ID returned by the API.
+         */
+        var responseBody =
+            await response.Content
+                .ReadFromJsonAsync<ImportJobResponse>();
+
+        Assert.NotNull(responseBody);
+
+        Assert.True(
+            responseBody.JobId > 0);
+
+        /*
+         * Wait until the background worker finishes.
+         */
+        var jobStatus =
+            await WaitForImportJobAsync(
+                responseBody.JobId);
+
+        Assert.NotNull(jobStatus);
+
+        /*
+         * Verify the import job completed successfully.
+         */
+        Assert.Equal(
+            "Completed",
+            jobStatus.Status);
+
+        Assert.Equal(
+            1,
+            jobStatus.TotalRows);
+
+        Assert.Equal(
+            1,
+            jobStatus.ProcessedRows);
+
+        Assert.Equal(
+            0,
+            jobStatus.UpdatedRows);
+
+        Assert.Equal(
+            1,
+            jobStatus.CreatedRows);
+
+        Assert.Equal(
+            0,
+            jobStatus.FailedRows);
+
+        /*
+         * Now retrieve all products.
+         */
+        using var productsRequest =
+            new HttpRequestMessage(
+                HttpMethod.Get,
+                "/api/products");
+
+        productsRequest.Headers.Add(
+            "X-Test-Role",
+            "Admin");
 
         var productsResponse =
-            await _client.GetAsync("/api/products");
+            await _client.SendAsync(
+                productsRequest);
 
         Assert.Equal(
             HttpStatusCode.OK,
@@ -202,17 +416,51 @@ public class ProductsApiTests
                 .ReadFromJsonAsync<List<ProductDto>>();
 
         Assert.NotNull(products);
-        Assert.NotEmpty(products);
 
-        var existingProduct =
-            products.First();
+        /*
+         * Find the exact product created by THIS test run.
+         */
+        var createdProduct =
+            products.FirstOrDefault(
+                product =>
+                    string.Equals(
+                        product.SKU,
+                        sku,
+                        StringComparison.OrdinalIgnoreCase));
 
-        // -----------------------------------------------------
-        // Get categories
-        // -----------------------------------------------------
+        Assert.NotNull(
+            createdProduct);
+
+        /*
+         * Verify the product's values.
+         */
+        Assert.Equal(
+            productName,
+            createdProduct.Name);
+
+        Assert.Equal(
+            price,
+            createdProduct.Price);
+
+        Assert.Equal(
+            stockQuantity,
+            createdProduct.StockQuantity);
+
+        /*
+         * Retrieve all categories.
+         */
+        using var categoriesRequest =
+            new HttpRequestMessage(
+                HttpMethod.Get,
+                "/api/categories");
+
+        categoriesRequest.Headers.Add(
+            "X-Test-Role",
+            "Admin");
 
         var categoriesResponse =
-            await _client.GetAsync("/api/categories");
+            await _client.SendAsync(
+                categoriesRequest);
 
         Assert.Equal(
             HttpStatusCode.OK,
@@ -223,141 +471,162 @@ public class ProductsApiTests
                 .ReadFromJsonAsync<List<CategoryDto>>();
 
         Assert.NotNull(categories);
-        Assert.NotEmpty(categories);
 
-        var category =
-            categories.First(
-                c => c.Id == existingProduct.CategoryId);
+        /*
+         * Find the category created by THIS test run.
+         */
+        var createdCategory =
+            categories.FirstOrDefault(
+                category =>
+                    string.Equals(
+                        category.Name,
+                        categoryName,
+                        StringComparison.OrdinalIgnoreCase));
 
-        // -----------------------------------------------------
-        // Create Excel using the new format:
-        //
-        // SKU | Name | Price | StockQuantity | Category
-        // -----------------------------------------------------
+        Assert.NotNull(
+            createdCategory);
 
-        using var excelStream =
-            CreateExcelStream(
-                new[]
-                {
-                    new[]
-                    {
-                        existingProduct.SKU,
-                        existingProduct.Name,
-                        existingProduct.Price.ToString(),
-                        existingProduct.StockQuantity.ToString(),
-                        category.Name
-                    }
-                });
-
-        using var content =
-            CreateMultipartContent(
-                excelStream,
-                "products.xlsx");
-
-        using var request =
-            new HttpRequestMessage(
-                HttpMethod.Post,
-                "/api/products/bulk-update");
-
-        request.Content = content;
-
-        request.Headers.Add(
-            "X-Test-Role",
-            "Admin");
-
-        // -----------------------------------------------------
-        // Act
-        // -----------------------------------------------------
-
-        var response =
-            await _client.SendAsync(request);
-
-        // -----------------------------------------------------
-        // Assert
-        // -----------------------------------------------------
-
+        /*
+         * Verify that the product is linked
+         * to the correct category.
+         */
         Assert.Equal(
-            HttpStatusCode.OK,
-            response.StatusCode);
-
-        var result =
-            await response.Content
-                .ReadFromJsonAsync<BulkProductUpdateResultDto>();
-
-        Assert.NotNull(result);
-
-        Assert.Equal(
-            1,
-            result.UpdatedCount);
-
-        Assert.Equal(
-            0,
-            result.CreatedCount);
-
-        Assert.Equal(
-            0,
-            result.FailedCount);
-
-        Assert.Empty(
-            result.Errors);
+            createdCategory.Id,
+            createdProduct.CategoryId);
     }
 
-    // =========================================================
-    // HELPERS
-    // =========================================================
+    /*
+     * Waits for the background import job to finish.
+     *
+     * The API returns immediately after queuing the job,
+     * so the test cannot expect the job to already be completed.
+     */
+    private async Task<ImportJobStatusDto>
+        WaitForImportJobAsync(
+            int jobId)
+    {
+        const int maxAttempts = 30;
 
+        for (var attempt = 0;
+             attempt < maxAttempts;
+             attempt++)
+        {
+            using var request =
+                new HttpRequestMessage(
+                    HttpMethod.Get,
+                    $"/api/products/import-jobs/{jobId}");
+
+            request.Headers.Add(
+                "X-Test-Role",
+                "Admin");
+
+            var response =
+                await _client.SendAsync(request);
+
+            Assert.Equal(
+                HttpStatusCode.OK,
+                response.StatusCode);
+
+            var jobStatus =
+                await response.Content
+                    .ReadFromJsonAsync<ImportJobStatusDto>();
+
+            Assert.NotNull(jobStatus);
+
+            if (jobStatus.Status == "Completed")
+            {
+                return jobStatus;
+            }
+
+            if (jobStatus.Status == "Failed")
+            {
+                throw new Exception(
+                    $"Import job failed: {jobStatus.ErrorMessage}");
+            }
+
+            if (jobStatus.Status == "Cancelled")
+            {
+                throw new Exception(
+                    "Import job was cancelled.");
+            }
+
+            /*
+             * Give the background worker some time
+             * to process the job before checking again.
+             */
+            await Task.Delay(
+                TimeSpan.FromMilliseconds(200));
+        }
+
+        throw new TimeoutException(
+            $"Import job {jobId} did not complete within the expected time.");
+    }
+
+    /*
+     * Creates an Excel file in memory.
+     *
+     * The Excel structure is:
+     *
+     * SKU | Name | Price | StockQuantity | Category
+     */
     private static MemoryStream CreateExcelStream(
-        IEnumerable<string[]> rows)
+        IEnumerable<BulkProductRowDto> rows)
     {
         var stream =
             new MemoryStream();
 
         using (var workbook =
-               new XLWorkbook())
+            new XLWorkbook())
         {
             var worksheet =
-                workbook.Worksheets.Add("Products");
+                workbook.Worksheets.Add(
+                    "Products");
 
-            // -------------------------------------------------
-            // NEW BULK IMPORT HEADERS
-            // -------------------------------------------------
+            /*
+             * Header row.
+             */
+            worksheet.Cell(1, 1)
+                .Value = "SKU";
 
-            worksheet.Cell(1, 1).Value =
-                "SKU";
+            worksheet.Cell(1, 2)
+                .Value = "Name";
 
-            worksheet.Cell(1, 2).Value =
-                "Name";
+            worksheet.Cell(1, 3)
+                .Value = "Price";
 
-            worksheet.Cell(1, 3).Value =
-                "Price";
+            worksheet.Cell(1, 4)
+                .Value = "StockQuantity";
 
-            worksheet.Cell(1, 4).Value =
-                "StockQuantity";
+            worksheet.Cell(1, 5)
+                .Value = "Category";
 
-            worksheet.Cell(1, 5).Value =
-                "Category";
-
-            // -------------------------------------------------
-            // DATA
-            // -------------------------------------------------
-
+            /*
+             * Data rows.
+             */
             var rowNumber = 2;
 
             foreach (var row in rows)
             {
-                for (
-                    var column = 0;
-                    column < row.Length;
-                    column++)
-                {
-                    worksheet.Cell(
-                        rowNumber,
-                        column + 1).Value =
-                        row[column];
-                }
+                worksheet.Cell(rowNumber, 1)
+                    .Value = row.SKU;
+
+                worksheet.Cell(rowNumber, 2)
+                    .Value = row.Name;
+
+                worksheet.Cell(rowNumber, 3)
+                    .Value = row.Price;
+
+                worksheet.Cell(rowNumber, 4)
+                    .Value = row.StockQuantity;
+
+                worksheet.Cell(rowNumber, 5)
+                    .Value = row.Category;
 
                 rowNumber++;
             }
+
+            worksheet.Columns()
+                .AdjustToContents();
 
             workbook.SaveAs(stream);
         }
@@ -367,6 +636,10 @@ public class ProductsApiTests
         return stream;
     }
 
+    /*
+     * Converts the Excel stream into multipart/form-data
+     * so it can be uploaded to the API.
+     */
     private static MultipartFormDataContent
         CreateMultipartContent(
             Stream stream,
@@ -388,5 +661,14 @@ public class ProductsApiTests
             fileName);
 
         return content;
+    }
+
+    /*
+     * Represents the response returned when
+     * a background import job is created.
+     */
+    private class ImportJobResponse
+    {
+        public int JobId { get; set; }
     }
 }

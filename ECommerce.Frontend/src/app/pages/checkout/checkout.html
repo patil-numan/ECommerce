@@ -1,0 +1,255 @@
+<app-navbar></app-navbar>
+
+<main class="checkout-page">
+
+  <div class="checkout-container">
+
+    <!-- HEADER -->
+
+    <div class="checkout-header">
+
+      <div>
+
+        <p class="eyebrow">
+          CHECKOUT
+        </p>
+
+        <h1>
+          Review your order
+        </h1>
+
+      </div>
+
+    </div>
+
+
+    @if (cartItems.length === 0) {
+
+      <!-- EMPTY CART -->
+
+      <section class="empty-checkout">
+
+        <h2>
+          Your cart is empty
+        </h2>
+
+        <p>
+          Add some products before checking out.
+        </p>
+
+        <a
+          routerLink="/"
+          class="continue-button"
+        >
+          Continue shopping
+        </a>
+
+      </section>
+
+
+    } @else {
+
+      <!-- CHECKOUT CONTENT -->
+
+      <section class="checkout-content">
+
+
+        <!-- ORDER ITEMS -->
+
+        <div class="checkout-items">
+
+          <div class="section-heading">
+
+            <p class="section-label">
+              ORDER ITEMS
+            </p>
+
+          </div>
+
+
+          @for (
+            item of cartItems;
+            track item.product.id
+          ) {
+
+            <article class="checkout-item">
+
+
+              <!-- PRODUCT -->
+
+              <div class="item-information">
+
+                <h2>
+                  {{ item.product.name }}
+                </h2>
+
+                <p>
+                  {{ item.product.sku }}
+                </p>
+
+              </div>
+
+
+              <!-- QUANTITY -->
+
+              <div class="item-quantity">
+
+                <span class="meta-label">
+                  QUANTITY
+                </span>
+
+                <span>
+                  {{ item.quantity }}
+                </span>
+
+              </div>
+
+
+              <!-- UNIT PRICE -->
+
+              <div class="item-price">
+
+                <span class="meta-label">
+                  UNIT PRICE
+                </span>
+
+                <span>
+                  ₹{{ item.product.price | number:'1.2-2' }}
+                </span>
+
+              </div>
+
+
+              <!-- SUBTOTAL -->
+
+              <div class="item-subtotal">
+
+                <span class="meta-label">
+                  SUBTOTAL
+                </span>
+
+                <span>
+                  ₹{{
+                    item.product.price *
+                    item.quantity
+                    | number:'1.2-2'
+                  }}
+                </span>
+
+              </div>
+
+            </article>
+
+          }
+
+        </div>
+
+
+        <!-- ORDER SUMMARY -->
+
+        <aside class="checkout-summary">
+
+          <p class="summary-label">
+            ORDER SUMMARY
+          </p>
+
+
+          <div class="summary-row">
+
+            <span>
+              Products
+            </span>
+
+            <span>
+              {{ cartItems.length }}
+            </span>
+
+          </div>
+
+
+          <div class="summary-row">
+
+            <span>
+              Total quantity
+            </span>
+
+            <span>
+              {{ totalQuantity }}
+            </span>
+
+          </div>
+
+
+          <div class="summary-total">
+
+            <span>
+              Total
+            </span>
+
+            <strong>
+              ₹{{ total | number:'1.2-2' }}
+            </strong>
+
+          </div>
+
+
+          <!-- ERROR -->
+
+          @if (error) {
+
+            <p class="checkout-error">
+              {{ error }}
+            </p>
+
+          }
+
+
+          <!-- PLACE ORDER -->
+
+          <button
+            type="button"
+            class="place-order-button"
+            [disabled]="loading"
+            (click)="placeOrder()"
+          >
+
+            @if (loading) {
+
+              Placing order...
+
+            } @else {
+
+              Place order
+
+            }
+
+          </button>
+
+
+          <!-- BACK TO CART -->
+
+          <a
+            routerLink="/cart"
+            class="back-to-cart"
+          >
+            Back to cart
+          </a>
+
+        </aside>
+
+      </section>
+
+    }
+
+  </div>
+
+</main>
+
+
+<footer class="site-footer">
+
+  <p>
+    © 2026 ECommerce
+  </p>
+
+</footer>

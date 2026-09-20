@@ -1,0 +1,262 @@
+<main class="product-form-page">
+
+  <div class="product-form-container">
+
+    <a
+      routerLink="/admin/products"
+      class="back-link"
+    >
+      Back to products
+    </a>
+
+    <header class="product-form-header">
+
+      <div>
+
+        <p class="eyebrow">
+          ADMINISTRATION
+        </p>
+
+        <h1>
+          @if (isEditMode) {
+            Edit product
+          } @else {
+            Add product
+          }
+        </h1>
+
+        <p class="product-form-description">
+          @if (isEditMode) {
+            Update the product information and inventory.
+          } @else {
+            Add a new product to the catalog.
+          }
+        </p>
+
+      </div>
+
+    </header>
+
+    @if (loading) {
+
+      <section class="form-state">
+        <p>
+          Loading product...
+        </p>
+      </section>
+
+    } @else {
+
+      @if (error) {
+
+        <div class="form-error">
+          {{ error }}
+        </div>
+
+      }
+
+      <section class="product-form-card">
+
+        <form
+          class="product-form"
+          (ngSubmit)="saveProduct()"
+        >
+
+          <div class="form-section">
+
+            <div class="section-heading">
+
+              <p class="section-label">
+                PRODUCT INFORMATION
+              </p>
+
+              <h2>
+                Basic details
+              </h2>
+
+            </div>
+
+            <div class="form-grid">
+
+              <div class="form-field">
+
+                <label for="sku">
+                  SKU
+                </label>
+
+                <input
+                  id="sku"
+                  type="text"
+                  name="sku"
+                  [(ngModel)]="sku"
+                  placeholder="e.g. LAP-001"
+                  [disabled]="saving"
+                />
+
+              </div>
+
+              <div class="form-field">
+
+                <label for="name">
+                  Product name
+                </label>
+
+                <input
+                  id="name"
+                  type="text"
+                  name="name"
+                  [(ngModel)]="name"
+                  placeholder="Enter product name"
+                  [disabled]="saving"
+                />
+
+              </div>
+
+              <div class="form-field full-width">
+
+                <label for="description">
+                  Description
+                </label>
+
+                <textarea
+                  id="description"
+                  name="description"
+                  [(ngModel)]="description"
+                  rows="5"
+                  placeholder="Enter product description"
+                  [disabled]="saving"
+                ></textarea>
+
+              </div>
+
+            </div>
+
+          </div>
+
+          <div class="form-section">
+
+            <div class="section-heading">
+
+              <p class="section-label">
+                PRICING AND INVENTORY
+              </p>
+
+              <h2>
+                Product values
+              </h2>
+
+            </div>
+
+            <div class="form-grid">
+
+              <div class="form-field">
+
+                <label for="price">
+                  Price
+                </label>
+
+                <input
+                  id="price"
+                  type="number"
+                  name="price"
+                  [(ngModel)]="price"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  [disabled]="saving"
+                />
+
+              </div>
+
+              <div class="form-field">
+
+                <label for="stockQuantity">
+                  Stock quantity
+                </label>
+
+                <input
+                  id="stockQuantity"
+                  type="number"
+                  name="stockQuantity"
+                  [(ngModel)]="stockQuantity"
+                  min="0"
+                  step="1"
+                  placeholder="0"
+                  [disabled]="saving"
+                />
+
+              </div>
+
+              <div class="form-field">
+
+                <label for="categoryId">
+                  Category ID
+                </label>
+
+                <input
+                  id="categoryId"
+                  type="number"
+                  name="categoryId"
+                  [(ngModel)]="categoryId"
+                  min="1"
+                  step="1"
+                  placeholder="Category ID"
+                  [disabled]="saving"
+                />
+
+              </div>
+
+            </div>
+
+          </div>
+
+          <div class="form-actions">
+
+            <a
+              routerLink="/admin/products"
+              class="cancel-button"
+            >
+              Cancel
+            </a>
+
+            <button
+              type="submit"
+              class="save-button"
+              [disabled]="saving"
+            >
+
+              @if (saving) {
+
+                Saving...
+
+              } @else if (isEditMode) {
+
+                Update product
+
+              } @else {
+
+                Create product
+
+              }
+
+            </button>
+
+          </div>
+
+        </form>
+
+      </section>
+
+    }
+
+  </div>
+
+</main>
+
+<footer class="site-footer">
+
+  <p>
+    © 2026 ECommerce
+  </p>
+
+</footer>

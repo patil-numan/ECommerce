@@ -31,24 +31,24 @@ public class ProductRepository : IProductRepository
     {
         await _context.Products.AddAsync(product);
 
-        await _context.SaveChangesAsync();
-
         return product;
+    }
+
+    public async Task AddRangeAsync(
+        IEnumerable<Product> products)
+    {
+        await _context.Products.AddRangeAsync(products);
     }
 
     public async Task UpdateAsync(Product product)
     {
         _context.Products.Update(product);
-
-        await _context.SaveChangesAsync();
     }
 
     public async Task UpdateRangeAsync(
-    IEnumerable<Product> products)
+        IEnumerable<Product> products)
     {
         _context.Products.UpdateRange(products);
-
-        await _context.SaveChangesAsync();
     }
 
     public async Task DeleteAsync(int id)
@@ -62,8 +62,10 @@ public class ProductRepository : IProductRepository
             return;
         }
 
-        _context.Products.Remove(product);
-
-        await _context.SaveChangesAsync();
+        // Soft delete:
+        // Keep the product in the database so existing
+        // OrderItem records can continue referencing it.
+        product.IsDeleted = true;
+        product.UpdatedAt = DateTime.UtcNow;
     }
 }

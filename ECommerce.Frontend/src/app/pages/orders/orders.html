@@ -1,0 +1,179 @@
+<app-navbar></app-navbar>
+
+<main class="orders-page">
+
+  <div class="orders-container">
+
+    <div class="orders-header">
+      <div>
+        <p class="eyebrow">
+          ACCOUNT
+        </p>
+
+        <h1>
+          My orders
+        </h1>
+
+        <p class="orders-description">
+          View your previous orders and their current status.
+        </p>
+      </div>
+    </div>
+
+    @if (loading) {
+
+      <section class="orders-state">
+        <p>Loading your orders...</p>
+      </section>
+
+    } @else if (error) {
+
+      <section class="orders-state error-state">
+        <h2>Unable to load orders</h2>
+
+        <p>
+          {{ error }}
+        </p>
+
+        <a
+          routerLink="/"
+          class="primary-button"
+        >
+          Back to products
+        </a>
+      </section>
+
+    } @else if (orders.length === 0) {
+
+      <section class="orders-state">
+        <h2>No orders yet</h2>
+
+        <p>
+          You have not placed any orders yet.
+        </p>
+
+        <a
+          routerLink="/"
+          class="primary-button"
+        >
+          Start shopping
+        </a>
+      </section>
+
+    } @else {
+
+      <section class="orders-list">
+
+        @for (order of orders; track order.id) {
+
+          <article class="order-card">
+
+            <div class="order-card-header">
+
+              <div>
+                <span class="meta-label">
+                  ORDER
+                </span>
+
+                <h2>
+                  #{{ order.id }}
+                </h2>
+              </div>
+
+              <div class="order-status">
+                {{ order.status }}
+              </div>
+
+            </div>
+
+            <div class="order-card-information">
+
+              <div class="information-item">
+                <span class="meta-label">
+                  ORDER DATE
+                </span>
+
+                <strong>
+                  {{ order.orderDate | date:'mediumDate' }}
+                </strong>
+              </div>
+
+              <div class="information-item">
+                <span class="meta-label">
+                  ITEMS
+                </span>
+
+                <strong>
+                  {{ order.items.length }}
+                </strong>
+              </div>
+
+              <div class="information-item">
+                <span class="meta-label">
+                  TOTAL
+                </span>
+
+                <strong>
+                  ₹{{ order.totalAmount | number:'1.2-2' }}
+                </strong>
+              </div>
+
+            </div>
+
+            <div class="order-card-items">
+
+              @for (
+                item of order.items;
+                track item.productId
+              ) {
+
+                <div class="order-item">
+
+                  <div>
+                    <h3>
+                      {{ item.productName }}
+                    </h3>
+
+                    <p>
+                      {{ item.quantity }}
+                      ×
+                      ₹{{ item.unitPrice | number:'1.2-2' }}
+                    </p>
+                  </div>
+
+                  <strong>
+                    ₹{{ item.totalPrice | number:'1.2-2' }}
+                  </strong>
+
+                </div>
+
+              }
+
+            </div>
+
+            <div class="order-card-footer">
+
+              <a
+                [routerLink]="['/orders', order.id]"
+                class="view-order-button"
+              >
+                View order
+              </a>
+
+            </div>
+
+          </article>
+
+        }
+
+      </section>
+
+    }
+
+  </div>
+
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 ECommerce</p>
+</footer>

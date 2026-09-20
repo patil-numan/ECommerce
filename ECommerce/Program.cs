@@ -49,6 +49,16 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddAuthorization();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AngularFrontend", policy =>
+    {
+        policy
+            .WithOrigins("http://localhost:4200")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IProductService, ProductService>();
@@ -57,6 +67,12 @@ builder.Services.AddScoped<ICacheService, MemoryCacheService>();
 
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
+
+builder.Services.AddScoped<IImportJobRepository,ImportJobRepository>();
+builder.Services.AddSingleton<IImportJobQueue,ImportJobQueue>();
+builder.Services.AddHostedService<ImportJobBackgroundService>();
+builder.Services.AddScoped<IFileStorageService,FileStorageService>();
+builder.Services.AddScoped<IBulkProductImportService,BulkProductImportService>();
 
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IOrderService, OrderService>();
@@ -136,6 +152,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("AngularFrontend");
 
 app.UseAuthentication();
 

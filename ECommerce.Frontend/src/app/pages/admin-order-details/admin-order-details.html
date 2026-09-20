@@ -1,0 +1,279 @@
+<main class="admin-order-page">
+
+  <div class="admin-order-container">
+
+    <a
+      routerLink="/admin"
+      class="back-link"
+    >
+      Back to admin dashboard
+    </a>
+
+    @if (loading) {
+
+      <section class="order-state">
+        <p>Loading order...</p>
+      </section>
+
+    } @else if (error && !order) {
+
+      <section class="order-state error-state">
+
+        <h1>
+          Unable to load order
+        </h1>
+
+        <p>
+          {{ error }}
+        </p>
+
+        <a
+          routerLink="/admin"
+          class="primary-button"
+        >
+          Back to dashboard
+        </a>
+
+      </section>
+
+    } @else if (order) {
+
+      <header class="order-header">
+
+        <div>
+          <p class="eyebrow">
+            ORDER MANAGEMENT
+          </p>
+
+          <h1>
+            Order #{{ order.id }}
+          </h1>
+
+          <p class="order-date">
+            Placed {{ order.orderDate | date:'medium' }}
+          </p>
+        </div>
+
+        <div class="current-status">
+          {{ order.status }}
+        </div>
+
+      </header>
+
+      @if (error) {
+        <div class="order-error">
+          {{ error }}
+        </div>
+      }
+
+      @if (success) {
+        <div class="order-success">
+          {{ success }}
+        </div>
+      }
+
+      <section class="order-management-card">
+
+        <div class="section-heading">
+
+          <p class="section-label">
+            ORDER STATUS
+          </p>
+
+          <h2>
+            Update order status
+          </h2>
+
+        </div>
+
+        <div class="status-controls">
+
+          <div class="status-field">
+
+            <label for="status">
+              Status
+            </label>
+
+            <select
+              id="status"
+              [(ngModel)]="selectedStatus"
+              [disabled]="updating"
+            >
+
+              @for (
+                status of statuses;
+                track status
+              ) {
+
+                <option [value]="status">
+                  {{ status }}
+                </option>
+
+              }
+
+            </select>
+
+          </div>
+
+          <button
+            type="button"
+            class="update-button"
+            (click)="updateStatus()"
+            [disabled]="
+              updating ||
+              selectedStatus === order.status
+            "
+          >
+            @if (updating) {
+              Updating...
+            } @else {
+              Update status
+            }
+          </button>
+
+        </div>
+
+      </section>
+
+      <section class="order-information-card">
+
+        <div class="section-heading">
+
+          <p class="section-label">
+            ORDER INFORMATION
+          </p>
+
+          <h2>
+            Customer order
+          </h2>
+
+        </div>
+
+        <div class="information-grid">
+
+          <div class="information-item">
+
+            <span>
+              ORDER NUMBER
+            </span>
+
+            <strong>
+              #{{ order.id }}
+            </strong>
+
+          </div>
+
+          <div class="information-item">
+
+            <span>
+              CUSTOMER
+            </span>
+
+            <strong class="customer-id">
+              {{ order.userId }}
+            </strong>
+
+          </div>
+
+          <div class="information-item">
+
+            <span>
+              ORDER DATE
+            </span>
+
+            <strong>
+              {{ order.orderDate | date:'mediumDate' }}
+            </strong>
+
+          </div>
+
+          <div class="information-item">
+
+            <span>
+              TOTAL
+            </span>
+
+            <strong>
+              ₹{{ order.totalAmount | number:'1.2-2' }}
+            </strong>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <section class="order-items-card">
+
+        <div class="section-heading">
+
+          <p class="section-label">
+            ORDER ITEMS
+          </p>
+
+          <h2>
+            Products
+          </h2>
+
+        </div>
+
+        <div class="order-items">
+
+          @for (
+            item of order.items;
+            track item.productId
+          ) {
+
+            <article class="order-item">
+
+              <div class="item-details">
+
+                <h3>
+                  {{ item.productName }}
+                </h3>
+
+                <p>
+                  {{ item.quantity }}
+                  ×
+                  ₹{{ item.unitPrice | number:'1.2-2' }}
+                </p>
+
+              </div>
+
+              <strong>
+                ₹{{ item.totalPrice | number:'1.2-2' }}
+              </strong>
+
+            </article>
+
+          }
+
+        </div>
+
+        <div class="order-total">
+
+          <span>
+            Total
+          </span>
+
+          <strong>
+            ₹{{ order.totalAmount | number:'1.2-2' }}
+          </strong>
+
+        </div>
+
+      </section>
+
+    }
+
+  </div>
+
+</main>
+
+<footer class="site-footer">
+
+  <p>
+    © 2026 ECommerce
+  </p>
+
+</footer>

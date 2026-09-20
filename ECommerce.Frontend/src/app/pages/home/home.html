@@ -1,0 +1,132 @@
+<app-navbar></app-navbar>
+
+<main>
+
+  <section class="hero">
+
+    <p class="eyebrow">
+      SIMPLE COMMERCE
+    </p>
+
+    <h1>
+      Every<span style="color: #0f62fe">think</span> you need.<br />
+      Nothing you don't.
+    </h1>
+
+    <p class="hero-text">
+      Discover products selected for everyday use.
+    </p>
+
+    <a
+      class="primary-link"
+      href="#products"
+    >
+      View products
+    </a>
+
+  </section>
+
+
+  <section
+    class="products-section"
+    id="products"
+  >
+
+    <div class="section-heading">
+
+      <p class="eyebrow">
+        COLLECTION
+      </p>
+
+      <h2>
+        Our products
+      </h2>
+
+    </div>
+
+
+    <div class="product-search">
+
+      <input
+        type="text"
+        placeholder="Search by product name or SKU"
+        [(ngModel)]="searchTerm"
+        (keyup.enter)="searchProducts()"
+      />
+
+      <button
+        type="button"
+        class="search-button"
+        (click)="searchProducts()"
+      >
+        Search
+      </button>
+
+    </div>
+
+
+    @if (loading) {
+
+      <div class="products-state">
+
+        <p>
+          Loading products...
+        </p>
+
+      </div>
+
+    } @else if (error) {
+
+      <div class="products-state error">
+
+        <p>
+          {{ error }}
+        </p>
+
+      </div>
+
+    } @else if (filteredProducts.length > 0) {
+
+      <div class="product-grid">
+
+        @for (
+          product of filteredProducts;
+          track product.id
+        ) {
+
+          <app-product-card
+            [product]="product">
+          </app-product-card>
+
+        }
+
+      </div>
+
+    } @else {
+
+      <div class="products-state">
+
+        <p>
+          @if (appliedSearchTerm) {
+            No products match your search.
+          } @else {
+            No products found.
+          }
+        </p>
+
+      </div>
+
+    }
+
+  </section>
+
+</main>
+
+
+<footer class="site-footer">
+
+  <p>
+    © 2026 ECommerce
+  </p>
+
+</footer>

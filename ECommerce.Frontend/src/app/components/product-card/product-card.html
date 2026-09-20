@@ -1,0 +1,58 @@
+<a
+  class="product-card"
+  [routerLink]="['/products', product.id]"
+>
+
+  <div class="product-card-top">
+
+    <span class="product-label">
+      PRODUCT
+    </span>
+
+    <span class="product-sku">
+      {{ product.sku }}
+    </span>
+
+  </div>
+
+
+  <div class="product-card-content">
+
+    <h3>
+      {{ product.name }}
+    </h3>
+
+    <p class="product-description">
+      {{ product.description }}
+    </p>
+
+  </div>
+
+
+  <div class="product-card-bottom">
+
+    <div class="product-price">
+      ₹{{ product.price | number:'1.2-2' }}
+    </div>
+
+    <div class="product-stock">
+
+      @if (product.stockQuantity > 0) {
+
+        <span>
+          {{ product.stockQuantity }} in stock
+        </span>
+
+      } @else {
+
+        <span class="out-of-stock">
+          Out of stock
+        </span>
+
+      }
+
+    </div>
+
+  </div>
+
+</a>

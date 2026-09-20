@@ -22,4 +22,9 @@ public class Product
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
+
+    // Soft delete flag.
+    // When true, the product is no longer available in the active catalog,
+    // but its database record is preserved for existing order history.
+    public bool IsDeleted { get; set; }
 }

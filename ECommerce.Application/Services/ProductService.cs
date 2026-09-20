@@ -13,8 +13,20 @@ public class ProductService : IProductService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMemoryCache _cache;
 
-    private const string ProductsCacheKey = "products_all";
-    private const string ProductCacheKeyPrefix = "product_";
+    private const string ProductsCacheKey =
+        "products";
+
+    private const string ProductCacheKeyPrefix =
+        "product_";
+
+    private static readonly string[] RequiredHeaders =
+    {
+        "SKU",
+        "Name",
+        "Price",
+        "StockQuantity",
+        "Category"
+    };
 
     public ProductService(
         IProductRepository productRepository,
@@ -28,12 +40,17 @@ public class ProductService : IProductService
         _cache = cache;
     }
 
+    // ============================================================
+    // GET ALL PRODUCTS
+    // ============================================================
+
     public async Task<IEnumerable<ProductDto>> GetAllAsync()
     {
         var cachedProducts =
-            _cache.Get(ProductsCacheKey) as IEnumerable<ProductDto>;
+            _cache.Get(ProductsCacheKey)
+                as IEnumerable<ProductDto>;
 
-        if (cachedProducts != null)
+        if (cachedProducts is not null)
         {
             return cachedProducts;
         }
@@ -41,18 +58,22 @@ public class ProductService : IProductService
         var products =
             await _productRepository.GetAllAsync();
 
-        var result =
+        var productDtos =
             products
                 .Select(MapToDto)
                 .ToList();
 
         _cache.Set(
             ProductsCacheKey,
-            result,
+            productDtos,
             TimeSpan.FromMinutes(5));
 
-        return result;
+        return productDtos;
     }
+
+    // ============================================================
+    // GET PRODUCT BY ID
+    // ============================================================
 
     public async Task<ProductDto?> GetByIdAsync(int id)
     {
@@ -60,9 +81,10 @@ public class ProductService : IProductService
             $"{ProductCacheKeyPrefix}{id}";
 
         var cachedProduct =
-            _cache.Get(cacheKey) as ProductDto;
+            _cache.Get(cacheKey)
+                as ProductDto;
 
-        if (cachedProduct != null)
+        if (cachedProduct is not null)
         {
             return cachedProduct;
         }
@@ -70,21 +92,25 @@ public class ProductService : IProductService
         var product =
             await _productRepository.GetByIdAsync(id);
 
-        if (product == null)
+        if (product is null)
         {
             return null;
         }
 
-        var result =
+        var productDto =
             MapToDto(product);
 
         _cache.Set(
             cacheKey,
-            result,
+            productDto,
             TimeSpan.FromMinutes(5));
 
-        return result;
+        return productDto;
     }
+
+    // ============================================================
+    // CREATE PRODUCT
+    // ============================================================
 
     public async Task<ProductDto> CreateAsync(
         CreateProductDto dto)
@@ -101,17 +127,17 @@ public class ProductService : IProductService
         var products =
             await _productRepository.GetAllAsync();
 
-        var skuExists =
-            products.Any(p =>
+        var duplicateSku =
+            products.Any(product =>
                 string.Equals(
-                    p.SKU?.Trim(),
+                    product.SKU,
                     sku,
                     StringComparison.OrdinalIgnoreCase));
 
-        if (skuExists)
+        if (duplicateSku)
         {
             throw new ArgumentException(
-                $"A product with SKU '{sku}' already exists.");
+                "A product with this SKU already exists.");
         }
 
         var product =
@@ -128,12 +154,20 @@ public class ProductService : IProductService
             };
 
         var createdProduct =
-            await _productRepository.AddAsync(product);
+            await _productRepository.AddAsync(
+                product);
+
+        // Persist the new product to the database.
+        await _unitOfWork.SaveChangesAsync();
 
         ClearProductCache();
 
         return MapToDto(createdProduct);
     }
+
+    // ============================================================
+    // UPDATE PRODUCT
+    // ============================================================
 
     public async Task<ProductDto?> UpdateAsync(
         int id,
@@ -148,7 +182,7 @@ public class ProductService : IProductService
         var product =
             await _productRepository.GetByIdAsync(id);
 
-        if (product == null)
+        if (product is null)
         {
             return null;
         }
@@ -159,18 +193,18 @@ public class ProductService : IProductService
         var products =
             await _productRepository.GetAllAsync();
 
-        var skuExists =
-            products.Any(p =>
-                p.Id != id &&
+        var duplicateSku =
+            products.Any(existingProduct =>
+                existingProduct.Id != id &&
                 string.Equals(
-                    p.SKU?.Trim(),
+                    existingProduct.SKU,
                     sku,
                     StringComparison.OrdinalIgnoreCase));
 
-        if (skuExists)
+        if (duplicateSku)
         {
             throw new ArgumentException(
-                $"A product with SKU '{sku}' already exists.");
+                "A product with this SKU already exists.");
         }
 
         product.SKU = sku;
@@ -181,55 +215,58 @@ public class ProductService : IProductService
         product.CategoryId = dto.CategoryId;
         product.UpdatedAt = DateTime.UtcNow;
 
-        await _productRepository.UpdateAsync(product);
+        await _productRepository.UpdateAsync(
+            product);
+
+        // Persist the product changes to the database.
+        await _unitOfWork.SaveChangesAsync();
 
         ClearProductCache(id);
 
         return MapToDto(product);
     }
 
+    // ============================================================
+    // DELETE PRODUCT
+    // ============================================================
+
     public async Task<bool> DeleteAsync(int id)
     {
         var product =
             await _productRepository.GetByIdAsync(id);
 
-        if (product == null)
+        if (product is null)
         {
             return false;
         }
 
         await _productRepository.DeleteAsync(id);
 
+        // Persist the deletion to the database.
+        await _unitOfWork.SaveChangesAsync();
+
         ClearProductCache(id);
 
         return true;
     }
 
-    public async Task<BulkProductUpdateResultDto> BulkUpdateAsync(
-        Stream excelStream)
-    {
-        var result =
-            new BulkProductUpdateResultDto();
+    // ============================================================
+    // BULK PRODUCT UPDATE / IMPORT
+    // ============================================================
 
+    public async Task<BulkProductUpdateResultDto>
+        BulkUpdateAsync(Stream excelStream)
+    {
         using var workbook =
             new XLWorkbook(excelStream);
 
         var worksheet =
-            workbook.Worksheets.FirstOrDefault();
+            GetWorksheet(workbook);
 
-        if (worksheet == null)
+        if (worksheet is null)
         {
-            result.FailedCount = 1;
-
-            result.Errors.Add(
-                new BulkProductUpdateErrorDto
-                {
-                    RowNumber = 1,
-                    Error =
-                        "The Excel file does not contain a worksheet."
-                });
-
-            return result;
+            return CreateBulkErrorResult(
+                "The Excel file does not contain a worksheet.");
         }
 
         var lastRowUsed =
@@ -238,57 +275,178 @@ public class ProductService : IProductService
         var lastColumnUsed =
             worksheet.LastColumnUsed();
 
-        if (lastRowUsed == null ||
-            lastColumnUsed == null)
+        if (lastRowUsed is null ||
+            lastColumnUsed is null)
         {
-            result.FailedCount = 1;
+            return CreateBulkErrorResult(
+                "The Excel file is empty.");
+        }
 
-            result.Errors.Add(
-                new BulkProductUpdateErrorDto
+        if (lastColumnUsed.ColumnNumber() < 5)
+        {
+            return CreateBulkErrorResult(
+                "The Excel file must contain the required columns.");
+        }
+
+        // --------------------------------------------------------
+        // 1. Read headers
+        // --------------------------------------------------------
+
+        var headers =
+            ReadHeaders(
+                worksheet,
+                lastColumnUsed.ColumnNumber());
+
+        // --------------------------------------------------------
+        // 2. Validate headers
+        // --------------------------------------------------------
+
+        var headerError =
+            ValidateHeaders(headers);
+
+        if (headerError is not null)
+        {
+            return CreateBulkErrorResult(
+                headerError);
+        }
+
+        // --------------------------------------------------------
+        // 3. Load existing database data
+        // --------------------------------------------------------
+
+        var products =
+            await _productRepository.GetAllAsync();
+
+        var categories =
+            await _categoryRepository.GetAllAsync();
+
+        var productsBySku =
+            BuildProductLookup(products);
+
+        var categoriesByName =
+            BuildCategoryLookup(categories);
+
+        // --------------------------------------------------------
+        // 4. Read and validate Excel rows
+        // --------------------------------------------------------
+
+        var validationResult =
+            ReadAndValidateRows(
+                worksheet,
+                lastRowUsed.RowNumber(),
+                headers);
+
+        if (validationResult.Errors.Count > 0)
+        {
+            validationResult.Result.FailedCount =
+                validationResult.Errors.Count;
+
+            validationResult.Result.Errors =
+                validationResult.Errors;
+
+            return validationResult.Result;
+        }
+
+        var validRows =
+            validationResult.Rows;
+
+        // --------------------------------------------------------
+        // 5. Find categories that need to be created
+        // --------------------------------------------------------
+
+        var newCategories =
+            FindNewCategories(
+                validRows,
+                categoriesByName);
+
+        // --------------------------------------------------------
+        // 6. Begin transaction
+        // --------------------------------------------------------
+
+        await _unitOfWork.BeginTransactionAsync();
+
+        try
+        {
+            // ----------------------------------------------------
+            // 7. Create missing categories
+            // ----------------------------------------------------
+
+            await CreateCategoriesAsync(
+                newCategories,
+                categoriesByName);
+
+            // ----------------------------------------------------
+            // 8. Process products
+            // ----------------------------------------------------
+
+            var counts =
+                await ProcessBulkUpdateAsync(
+                    validRows,
+                    productsBySku,
+                    categoriesByName);
+
+            // ----------------------------------------------------
+            // 9. Commit transaction
+            // ----------------------------------------------------
+
+            await _unitOfWork.CommitTransactionAsync();
+
+            var result =
+                new BulkProductUpdateResultDto
                 {
-                    RowNumber = 1,
-                    Error =
-                        "The Excel worksheet is empty."
-                });
+                    UpdatedCount =
+                        counts.UpdatedCount,
+
+                    CreatedCount =
+                        counts.CreatedCount,
+
+                    FailedCount = 0
+                };
+
+            ClearProductCache();
 
             return result;
         }
-
-        var lastColumnNumber =
-            lastColumnUsed.ColumnNumber();
-
-        if (lastColumnNumber < 5)
+        catch
         {
-            result.FailedCount = 1;
+            // ----------------------------------------------------
+            // Rollback if anything fails
+            // ----------------------------------------------------
 
-            result.Errors.Add(
-                new BulkProductUpdateErrorDto
-                {
-                    RowNumber = 1,
-                    Error =
-                        "The Excel file must contain these columns: " +
-                        "SKU, Name, Price, StockQuantity, Category."
-                });
+            await _unitOfWork.RollbackTransactionAsync();
 
-            return result;
+            throw;
         }
+    }
 
-        // ------------------------------------------------------------
-        // READ HEADERS
-        // ------------------------------------------------------------
+    // ============================================================
+    // GET WORKSHEET
+    // ============================================================
 
+    private static IXLWorksheet? GetWorksheet(
+        XLWorkbook workbook)
+    {
+        return workbook.Worksheets.FirstOrDefault();
+    }
+
+    // ============================================================
+    // READ HEADERS
+    // ============================================================
+
+    private static Dictionary<string, int> ReadHeaders(
+        IXLWorksheet worksheet,
+        int lastColumn)
+    {
         var headers =
             new Dictionary<string, int>(
                 StringComparer.OrdinalIgnoreCase);
 
-        for (
-            var column = 1;
-            column <= lastColumnNumber;
-            column++)
+        for (var column = 1;
+             column <= lastColumn;
+             column++)
         {
             var header =
-                worksheet
-                    .Cell(1, column)
+                worksheet.Cell(1, column)
                     .GetString()
                     .Trim();
 
@@ -298,438 +456,575 @@ public class ProductService : IProductService
             }
         }
 
-        var requiredHeaders =
-            new[]
-            {
-                "SKU",
-                "Name",
-                "Price",
-                "StockQuantity",
-                "Category"
-            };
+        return headers;
+    }
 
-        foreach (var requiredHeader in requiredHeaders)
+    // ============================================================
+    // VALIDATE HEADERS
+    // ============================================================
+
+    private static string? ValidateHeaders(
+        Dictionary<string, int> headers)
+    {
+        foreach (var requiredHeader in RequiredHeaders)
         {
             if (!headers.ContainsKey(requiredHeader))
             {
-                result.FailedCount = 1;
-
-                result.Errors.Add(
-                    new BulkProductUpdateErrorDto
-                    {
-                        RowNumber = 1,
-                        Error =
-                            $"Missing required column '{requiredHeader}'."
-                    });
-
-                return result;
+                return
+                    $"Required column '{requiredHeader}' is missing.";
             }
         }
 
-        // ------------------------------------------------------------
-        // LOAD EXISTING DATA
-        // ------------------------------------------------------------
+        return null;
+    }
 
-        var products =
-            (await _productRepository.GetAllAsync())
-            .ToList();
+    // ============================================================
+    // BUILD PRODUCT LOOKUP
+    // ============================================================
 
-        var categories =
-            (await _categoryRepository.GetAllAsync())
-            .ToList();
+    private static Dictionary<string, Product>
+        BuildProductLookup(
+            IEnumerable<Product> products)
+    {
+        return products
+            .Where(product =>
+                !string.IsNullOrWhiteSpace(product.SKU))
+            .GroupBy(
+                product => product.SKU.Trim(),
+                StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group.First(),
+                StringComparer.OrdinalIgnoreCase);
+    }
 
-        var productsBySku =
-            products
-                .Where(p =>
-                    !string.IsNullOrWhiteSpace(p.SKU))
-                .GroupBy(
-                    p => p.SKU.Trim(),
-                    StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(
-                    g => g.Key,
-                    g => g.First(),
-                    StringComparer.OrdinalIgnoreCase);
+    // ============================================================
+    // BUILD CATEGORY LOOKUP
+    // ============================================================
 
-        var categoriesByName =
-            categories
-                .Where(c =>
-                    !string.IsNullOrWhiteSpace(c.Name))
-                .GroupBy(
-                    c => c.Name.Trim(),
-                    StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(
-                    g => g.Key,
-                    g => g.First(),
-                    StringComparer.OrdinalIgnoreCase);
+    private static Dictionary<string, Category>
+        BuildCategoryLookup(
+            IEnumerable<Category> categories)
+    {
+        return categories
+            .Where(category =>
+                !string.IsNullOrWhiteSpace(category.Name))
+            .GroupBy(
+                category => category.Name.Trim(),
+                StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group.First(),
+                StringComparer.OrdinalIgnoreCase);
+    }
 
-        // ------------------------------------------------------------
-        // VALIDATE EXCEL
-        // ------------------------------------------------------------
+    // ============================================================
+    // READ AND VALIDATE ROWS
+    // ============================================================
+
+    private static (
+        List<BulkProductRowDto> Rows,
+        List<BulkProductUpdateErrorDto> Errors,
+        BulkProductUpdateResultDto Result)
+        ReadAndValidateRows(
+            IXLWorksheet worksheet,
+            int lastRow,
+            Dictionary<string, int> headers)
+    {
+        var validRows =
+            new List<BulkProductRowDto>();
+
+        var errors =
+            new List<BulkProductUpdateErrorDto>();
 
         var excelSkus =
             new HashSet<string>(
                 StringComparer.OrdinalIgnoreCase);
 
-        var rows =
-            new List<BulkProductRowDto>();
+        var result =
+            new BulkProductUpdateResultDto();
 
-        var lastRowNumber =
-            lastRowUsed.RowNumber();
-
-        for (
-            var rowNumber = 2;
-            rowNumber <= lastRowNumber;
-            rowNumber++)
+        for (var rowNumber = 2;
+             rowNumber <= lastRow;
+             rowNumber++)
         {
-            var row =
-                worksheet.Row(rowNumber);
-
             var sku =
-                row.Cell(headers["SKU"])
-                    .GetString()
-                    .Trim();
+                worksheet.Cell(
+                    rowNumber,
+                    headers["SKU"])
+                .GetString()
+                .Trim();
 
             var name =
-                row.Cell(headers["Name"])
-                    .GetString()
-                    .Trim();
+                worksheet.Cell(
+                    rowNumber,
+                    headers["Name"])
+                .GetString()
+                .Trim();
 
-            var categoryName =
-                row.Cell(headers["Category"])
-                    .GetString()
-                    .Trim();
+            var category =
+                worksheet.Cell(
+                    rowNumber,
+                    headers["Category"])
+                .GetString()
+                .Trim();
 
             var priceCell =
-                row.Cell(headers["Price"]);
+                worksheet.Cell(
+                    rowNumber,
+                    headers["Price"]);
 
             var stockCell =
-                row.Cell(headers["StockQuantity"]);
+                worksheet.Cell(
+                    rowNumber,
+                    headers["StockQuantity"]);
 
-            var rowHasData =
-                !string.IsNullOrWhiteSpace(sku) ||
-                !string.IsNullOrWhiteSpace(name) ||
-                !string.IsNullOrWhiteSpace(categoryName) ||
-                !priceCell.IsEmpty() ||
-                !stockCell.IsEmpty();
+            // ----------------------------------------------------
+            // Skip completely empty rows
+            // ----------------------------------------------------
 
-            if (!rowHasData)
+            if (IsEmptyRow(
+                    sku,
+                    name,
+                    category,
+                    priceCell,
+                    stockCell))
             {
                 continue;
             }
 
-            var rowHasError = false;
+            var row =
+                CreateValidatedRow(
+                    rowNumber,
+                    sku,
+                    name,
+                    category,
+                    priceCell,
+                    stockCell,
+                    excelSkus,
+                    errors);
 
-            // --------------------------------------------------------
-            // SKU
-            // --------------------------------------------------------
-
-            if (string.IsNullOrWhiteSpace(sku))
+            if (row is not null)
             {
-                result.Errors.Add(
-                    new BulkProductUpdateErrorDto
-                    {
-                        RowNumber = rowNumber,
-                        SKU = string.Empty,
-                        Error = "SKU is required."
-                    });
-
-                rowHasError = true;
+                validRows.Add(row);
             }
-            else if (!excelSkus.Add(sku))
-            {
-                result.Errors.Add(
-                    new BulkProductUpdateErrorDto
-                    {
-                        RowNumber = rowNumber,
-                        SKU = sku,
-                        Error =
-                            $"Duplicate SKU '{sku}' found in the Excel file."
-                    });
-
-                rowHasError = true;
-            }
-
-            // --------------------------------------------------------
-            // NAME
-            // --------------------------------------------------------
-
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                result.Errors.Add(
-                    new BulkProductUpdateErrorDto
-                    {
-                        RowNumber = rowNumber,
-                        SKU = sku,
-                        Error = "Name is required."
-                    });
-
-                rowHasError = true;
-            }
-
-            // --------------------------------------------------------
-            // PRICE
-            // --------------------------------------------------------
-
-            decimal price;
-
-            if (!decimal.TryParse(
-                    priceCell.GetString(),
-                    out price))
-            {
-                result.Errors.Add(
-                    new BulkProductUpdateErrorDto
-                    {
-                        RowNumber = rowNumber,
-                        SKU = sku,
-                        Error =
-                            "Price must be a valid decimal number."
-                    });
-
-                rowHasError = true;
-            }
-            else if (price < 0)
-            {
-                result.Errors.Add(
-                    new BulkProductUpdateErrorDto
-                    {
-                        RowNumber = rowNumber,
-                        SKU = sku,
-                        Error =
-                            "Price cannot be negative."
-                    });
-
-                rowHasError = true;
-            }
-
-            // --------------------------------------------------------
-            // STOCK
-            // --------------------------------------------------------
-
-            int stockQuantity;
-
-            if (!int.TryParse(
-                    stockCell.GetString(),
-                    out stockQuantity))
-            {
-                result.Errors.Add(
-                    new BulkProductUpdateErrorDto
-                    {
-                        RowNumber = rowNumber,
-                        SKU = sku,
-                        Error =
-                            "StockQuantity must be a valid integer."
-                    });
-
-                rowHasError = true;
-            }
-            else if (stockQuantity < 0)
-            {
-                result.Errors.Add(
-                    new BulkProductUpdateErrorDto
-                    {
-                        RowNumber = rowNumber,
-                        SKU = sku,
-                        Error =
-                            "StockQuantity cannot be negative."
-                    });
-
-                rowHasError = true;
-            }
-
-            // --------------------------------------------------------
-            // CATEGORY
-            // --------------------------------------------------------
-
-            if (string.IsNullOrWhiteSpace(categoryName))
-            {
-                result.Errors.Add(
-                    new BulkProductUpdateErrorDto
-                    {
-                        RowNumber = rowNumber,
-                        SKU = sku,
-                        Error =
-                            "Category is required."
-                    });
-
-                rowHasError = true;
-            }
-
-            if (rowHasError)
-            {
-                continue;
-            }
-
-            rows.Add(
-                new BulkProductRowDto
-                {
-                    SKU = sku,
-                    Name = name,
-                    Price = price,
-                    StockQuantity = stockQuantity,
-                    Category = categoryName
-                });
         }
 
-        // ------------------------------------------------------------
-        // STOP IF VALIDATION FAILED
-        // ------------------------------------------------------------
+        return (
+            validRows,
+            errors,
+            result);
+    }
 
-        if (result.Errors.Count > 0)
+    // ============================================================
+    // CHECK EMPTY ROW
+    // ============================================================
+
+    private static bool IsEmptyRow(
+        string sku,
+        string name,
+        string category,
+        IXLCell priceCell,
+        IXLCell stockCell)
+    {
+        return
+            string.IsNullOrWhiteSpace(sku) &&
+            string.IsNullOrWhiteSpace(name) &&
+            string.IsNullOrWhiteSpace(category) &&
+            priceCell.IsEmpty() &&
+            stockCell.IsEmpty();
+    }
+
+    // ============================================================
+    // CREATE VALIDATED ROW
+    // ============================================================
+
+    private static BulkProductRowDto? CreateValidatedRow(
+        int rowNumber,
+        string sku,
+        string name,
+        string category,
+        IXLCell priceCell,
+        IXLCell stockCell,
+        HashSet<string> excelSkus,
+        List<BulkProductUpdateErrorDto> errors)
+    {
+        var rowErrors =
+            new List<string>();
+
+        ValidateSku(
+            sku,
+            excelSkus,
+            rowErrors);
+
+        ValidateName(
+            name,
+            rowErrors);
+
+        var price =
+            ValidatePrice(
+                priceCell,
+                rowErrors);
+
+        var stockQuantity =
+            ValidateStockQuantity(
+                stockCell,
+                rowErrors);
+
+        ValidateCategory(
+            category,
+            rowErrors);
+
+        if (rowErrors.Count > 0)
         {
-            result.FailedCount =
-                result.Errors.Count;
+            errors.Add(
+                new BulkProductUpdateErrorDto
+                {
+                    RowNumber = rowNumber,
+                    SKU = sku,
+                    Error = string.Join(
+                        "; ",
+                        rowErrors)
+                });
 
-            return result;
+            return null;
         }
 
-        // ------------------------------------------------------------
-        // IDENTIFY NEW CATEGORIES
-        // ------------------------------------------------------------
+        return new BulkProductRowDto
+        {
+            SKU = sku,
+            Name = name,
+            Price = price,
+            StockQuantity = stockQuantity,
+            Category = category
+        };
+    }
 
+    // ============================================================
+    // VALIDATE SKU
+    // ============================================================
+
+    private static void ValidateSku(
+        string sku,
+        HashSet<string> excelSkus,
+        List<string> errors)
+    {
+        if (string.IsNullOrWhiteSpace(sku))
+        {
+            errors.Add(
+                "SKU is required.");
+
+            return;
+        }
+
+        if (!excelSkus.Add(sku))
+        {
+            errors.Add(
+                "Duplicate SKU found in Excel file.");
+        }
+    }
+
+    // ============================================================
+    // VALIDATE NAME
+    // ============================================================
+
+    private static void ValidateName(
+        string name,
+        List<string> errors)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            errors.Add(
+                "Name is required.");
+        }
+    }
+
+    // ============================================================
+    // VALIDATE PRICE
+    // ============================================================
+
+    private static decimal ValidatePrice(
+        IXLCell priceCell,
+        List<string> errors)
+    {
+        var priceText =
+            priceCell.GetString();
+
+        if (!decimal.TryParse(
+                priceText,
+                out var price))
+        {
+            errors.Add(
+                "Price must be a valid decimal number.");
+
+            return 0;
+        }
+
+        if (price < 0)
+        {
+            errors.Add(
+                "Price cannot be negative.");
+        }
+
+        return price;
+    }
+
+    // ============================================================
+    // VALIDATE STOCK QUANTITY
+    // ============================================================
+
+    private static int ValidateStockQuantity(
+        IXLCell stockCell,
+        List<string> errors)
+    {
+        var stockText =
+            stockCell.GetString();
+
+        if (!int.TryParse(
+                stockText,
+                out var stockQuantity))
+        {
+            errors.Add(
+                "StockQuantity must be a valid integer.");
+
+            return 0;
+        }
+
+        if (stockQuantity < 0)
+        {
+            errors.Add(
+                "StockQuantity cannot be negative.");
+        }
+
+        return stockQuantity;
+    }
+
+    // ============================================================
+    // VALIDATE CATEGORY
+    // ============================================================
+
+    private static void ValidateCategory(
+        string category,
+        List<string> errors)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            errors.Add(
+                "Category is required.");
+        }
+    }
+
+    // ============================================================
+    // FIND NEW CATEGORIES
+    // ============================================================
+
+    private static Dictionary<string, Category>
+        FindNewCategories(
+            IEnumerable<BulkProductRowDto> rows,
+            Dictionary<string, Category> categoriesByName)
+    {
         var newCategories =
             new Dictionary<string, Category>(
                 StringComparer.OrdinalIgnoreCase);
 
         foreach (var row in rows)
         {
-            if (categoriesByName.ContainsKey(row.Category))
+            if (categoriesByName.ContainsKey(
+                    row.Category))
             {
                 continue;
             }
 
-            if (!newCategories.ContainsKey(row.Category))
+            if (newCategories.ContainsKey(
+                    row.Category))
             {
-                var category =
-                    new Category
-                    {
-                        Name = row.Category.Trim(),
-                        Description = string.Empty
-                    };
+                continue;
+            }
 
-                newCategories.Add(
-                    row.Category,
+            newCategories[row.Category] =
+                new Category
+                {
+                    Name = row.Category,
+                    Description = string.Empty
+                };
+        }
+
+        return newCategories;
+    }
+
+    // ============================================================
+    // CREATE CATEGORIES
+    // ============================================================
+
+    private async Task CreateCategoriesAsync(
+        Dictionary<string, Category> newCategories,
+        Dictionary<string, Category> categoriesByName)
+    {
+        foreach (var categoryEntry in newCategories)
+        {
+            var category =
+                categoryEntry.Value;
+
+            var createdCategory =
+                await _categoryRepository.AddAsync(
                     category);
-            }
-        }
 
-        // ------------------------------------------------------------
-        // START TRANSACTION
-        // ------------------------------------------------------------
-
-        await _unitOfWork.BeginTransactionAsync();
-
-        try
-        {
-            // --------------------------------------------------------
-            // CREATE NEW CATEGORIES
-            // --------------------------------------------------------
-
-            foreach (var category in newCategories.Values)
-            {
-                var createdCategory =
-                    await _categoryRepository.AddAsync(category);
-
-                categoriesByName[
-                    createdCategory.Name.Trim()] =
-                    createdCategory;
-            }
-
-            var updatedCount = 0;
-            var createdCount = 0;
-
-            // --------------------------------------------------------
-            // PROCESS PRODUCTS
-            // --------------------------------------------------------
-
-            foreach (var row in rows)
-            {
-                var category =
-                    categoriesByName[row.Category.Trim()];
-
-                // ----------------------------------------------------
-                // EXISTING PRODUCT
-                // ----------------------------------------------------
-
-                if (productsBySku.TryGetValue(
-                        row.SKU,
-                        out var existingProduct))
-                {
-                    existingProduct.SKU =
-                        row.SKU.Trim();
-
-                    existingProduct.Name =
-                        row.Name;
-
-                    existingProduct.Price =
-                        row.Price;
-
-                    existingProduct.StockQuantity =
-                        row.StockQuantity;
-
-                    existingProduct.CategoryId =
-                        category.Id;
-
-                    existingProduct.UpdatedAt =
-                        DateTime.UtcNow;
-
-                    await _productRepository.UpdateAsync(
-                        existingProduct);
-
-                    updatedCount++;
-                }
-                else
-                {
-                    // ------------------------------------------------
-                    // NEW PRODUCT
-                    // ------------------------------------------------
-
-                    var newProduct =
-                        new Product
-                        {
-                            SKU = row.SKU.Trim(),
-                            Name = row.Name,
-                            Description = string.Empty,
-                            Price = row.Price,
-                            CategoryId = category.Id,
-                            StockQuantity = row.StockQuantity,
-                            CreatedAt = DateTime.UtcNow,
-                            UpdatedAt = DateTime.UtcNow
-                        };
-
-                    await _productRepository.AddAsync(
-                        newProduct);
-
-                    createdCount++;
-                }
-            }
-
-            // --------------------------------------------------------
-            // COMMIT
-            // --------------------------------------------------------
-
-            await _unitOfWork.CommitTransactionAsync();
-
-            result.UpdatedCount =
-                updatedCount;
-
-            result.CreatedCount =
-                createdCount;
-
-            result.FailedCount = 0;
-
-            result.Errors.Clear();
-
-            ClearProductCache();
-
-            return result;
-        }
-        catch
-        {
-            await _unitOfWork.RollbackTransactionAsync();
-
-            throw;
+            categoriesByName[
+                categoryEntry.Key] =
+                createdCategory;
         }
     }
+
+    // ============================================================
+    // PROCESS BULK UPDATE
+    // ============================================================
+
+    private async Task<(
+        int UpdatedCount,
+        int CreatedCount)>
+        ProcessBulkUpdateAsync(
+            List<BulkProductRowDto> validRows,
+            Dictionary<string, Product> productsBySku,
+            Dictionary<string, Category> categoriesByName)
+    {
+        var productsToUpdate =
+            new List<Product>();
+
+        var productsToCreate =
+            new List<Product>();
+
+        foreach (var row in validRows)
+        {
+            var category =
+                categoriesByName[row.Category];
+
+            if (productsBySku.TryGetValue(
+                    row.SKU,
+                    out var existingProduct))
+            {
+                PrepareProductForUpdate(
+                    existingProduct,
+                    row,
+                    category);
+
+                productsToUpdate.Add(
+                    existingProduct);
+            }
+            else
+            {
+                var newProduct =
+                    CreateProductFromRow(
+                        row,
+                        category);
+
+                productsToCreate.Add(
+                    newProduct);
+            }
+        }
+
+        // --------------------------------------------------------
+        // IMPORTANT:
+        // Use UpdateRangeAsync for bulk updates.
+        // This preserves the existing repository contract
+        // and allows transaction failure tests to simulate
+        // database failures correctly.
+        // --------------------------------------------------------
+
+        if (productsToUpdate.Count > 0)
+        {
+            await _productRepository.UpdateRangeAsync(
+                productsToUpdate);
+        }
+
+        foreach (var product in productsToCreate)
+        {
+            await _productRepository.AddAsync(
+                product);
+        }
+
+        return (
+            productsToUpdate.Count,
+            productsToCreate.Count);
+    }
+
+    // ============================================================
+    // PREPARE PRODUCT FOR UPDATE
+    // ============================================================
+
+    private static void PrepareProductForUpdate(
+        Product product,
+        BulkProductRowDto row,
+        Category category)
+    {
+        product.SKU =
+            row.SKU;
+
+        product.Name =
+            row.Name;
+
+        product.Price =
+            row.Price;
+
+        product.StockQuantity =
+            row.StockQuantity;
+
+        product.CategoryId =
+            category.Id;
+
+        product.UpdatedAt =
+            DateTime.UtcNow;
+    }
+
+    // ============================================================
+    // CREATE PRODUCT FROM EXCEL ROW
+    // ============================================================
+
+    private static Product CreateProductFromRow(
+        BulkProductRowDto row,
+        Category category)
+    {
+        var now =
+            DateTime.UtcNow;
+
+        return new Product
+        {
+            SKU = row.SKU,
+            Name = row.Name,
+            Description = string.Empty,
+            Price = row.Price,
+            CategoryId = category.Id,
+            StockQuantity = row.StockQuantity,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+    }
+
+    // ============================================================
+    // CREATE BULK ERROR RESULT
+    // ============================================================
+
+    private static BulkProductUpdateResultDto
+        CreateBulkErrorResult(
+            string error)
+    {
+        return new BulkProductUpdateResultDto
+        {
+            FailedCount = 1,
+            Errors =
+            {
+                new BulkProductUpdateErrorDto
+                {
+                    RowNumber = 0,
+                    SKU = string.Empty,
+                    Error = error
+                }
+            }
+        };
+    }
+
+    // ============================================================
+    // MAP PRODUCT TO DTO
+    // ============================================================
 
     private static ProductDto MapToDto(
         Product product)
@@ -746,15 +1041,26 @@ public class ProductService : IProductService
         };
     }
 
-    private void ClearProductCache(
-        int? productId = null)
-    {
-        _cache.Remove(ProductsCacheKey);
+    // ============================================================
+    // CLEAR ALL PRODUCT CACHE
+    // ============================================================
 
-        if (productId.HasValue)
-        {
-            _cache.Remove(
-                $"{ProductCacheKeyPrefix}{productId.Value}");
-        }
+    private void ClearProductCache()
+    {
+        _cache.Remove(
+            ProductsCacheKey);
+    }
+
+    // ============================================================
+    // CLEAR SINGLE PRODUCT CACHE
+    // ============================================================
+
+    private void ClearProductCache(int id)
+    {
+        _cache.Remove(
+            ProductsCacheKey);
+
+        _cache.Remove(
+            $"{ProductCacheKeyPrefix}{id}");
     }
 }

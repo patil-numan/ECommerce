@@ -1,0 +1,160 @@
+<main class="confirmation-page">
+
+  <div class="confirmation-container">
+
+    @if (loading) {
+
+      <section class="confirmation-state">
+
+        <p>
+          Loading your order...
+        </p>
+
+      </section>
+
+    } @else if (error) {
+
+      <section class="confirmation-state error">
+
+        <h1>
+          Unable to load order
+        </h1>
+
+        <p>
+          {{ error }}
+        </p>
+
+        <a
+          routerLink="/"
+          class="primary-button"
+        >
+          Back to products
+        </a>
+
+      </section>
+
+    } @else if (order) {
+
+      <section class="confirmation-card">
+
+        <p class="eyebrow">
+          ORDER CONFIRMED
+        </p>
+
+        <h1>
+          Thank you for your order.
+        </h1>
+
+        <p class="confirmation-message">
+          Your order has been successfully placed.
+        </p>
+
+
+        <div class="order-information">
+
+          <div class="information-item">
+
+            <span>
+              ORDER NUMBER
+            </span>
+
+            <strong>
+              #{{ order.id }}
+            </strong>
+
+          </div>
+
+
+          <div class="information-item">
+
+            <span>
+              ORDER DATE
+            </span>
+
+            <strong>
+              {{ order.orderDate | date:'medium' }}
+            </strong>
+
+          </div>
+
+
+          <div class="information-item">
+
+            <span>
+              STATUS
+            </span>
+
+            <strong>
+              {{ order.status }}
+            </strong>
+
+          </div>
+
+        </div>
+
+
+        <div class="order-items">
+
+          <p class="section-label">
+            ORDER ITEMS
+          </p>
+
+
+          @for (
+            item of order.items;
+            track item.productId
+          ) {
+
+            <div class="order-item">
+
+              <div>
+
+                <h2>
+                  {{ item.productName }}
+                </h2>
+
+                <p>
+                  {{ item.quantity }} ×
+                  ₹{{ item.unitPrice | number:'1.2-2' }}
+                </p>
+
+              </div>
+
+              <strong>
+                ₹{{ item.totalPrice | number:'1.2-2' }}
+              </strong>
+
+            </div>
+
+          }
+
+        </div>
+
+
+        <div class="order-total">
+
+          <span>
+            Total
+          </span>
+
+          <strong>
+            ₹{{ order.totalAmount | number:'1.2-2' }}
+          </strong>
+
+        </div>
+
+
+        <a
+          routerLink="/"
+          class="primary-button"
+        >
+          Continue shopping
+        </a>
+
+      </section>
+
+    }
+
+  </div>
+
+</main>
