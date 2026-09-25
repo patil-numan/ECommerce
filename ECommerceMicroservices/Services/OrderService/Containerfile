@@ -1,0 +1,29 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+
+WORKDIR /src
+
+COPY Services/OrderService/OrderService.Domain/OrderService.Domain.csproj Services/OrderService/OrderService.Domain/
+COPY Services/OrderService/OrderService.Application/OrderService.Application.csproj Services/OrderService/OrderService.Application/
+COPY Services/OrderService/OrderService.Infrastructure/OrderService.Infrastructure.csproj Services/OrderService/OrderService.Infrastructure/
+COPY Services/OrderService/OrderService.API/OrderService.API.csproj Services/OrderService/OrderService.API/
+
+RUN dotnet restore Services/OrderService/OrderService.API/OrderService.API.csproj
+
+COPY . .
+
+RUN dotnet publish Services/OrderService/OrderService.API/OrderService.API.csproj \
+    -c Release \
+    -o /app/publish \
+    --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+
+WORKDIR /app
+
+COPY --from=build /app/publish .
+
+EXPOSE 8080
+
+ENV ASPNETCORE_URLS=http://+:8080
+
+ENTRYPOINT ["dotnet", "OrderService.API.dll"]

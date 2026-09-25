@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: ecommerce
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      containers:
+        - name: order-service
+          image: localhost/ecommerce-order-service:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+
+          env:
+            - name: ASPNETCORE_URLS
+              value: "http://+:8080"
+            - name: SQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ecommerce-secrets
+                  key: SQL_PASSWORD
+            - name: ConnectionStrings__OrderDatabase
+              value: "Server=172.30.110.203,1433;Database=ECommerce_OrderDb;User Id=sa;Password=$(SQL_PASSWORD);TrustServerCertificate=True;MultipleActiveResultSets=true"
+            - name: Services__ProductServiceUrl
+              value: "http://product-service:8080/"
+            - name: Services__PaymentServiceUrl
+              value: "http://payment-service:8080/"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  namespace: ecommerce
+spec:
+  selector:
+    app: order-service
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
