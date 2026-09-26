@@ -24,7 +24,7 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore dependencies
-        run: dotnet restore ECommerceMicroservices.slnx
+        run: dotnet restore ECommerceMicroservices/ECommerceMicroservices.slnx
 
       - name: Build solution
-        run: dotnet build ECommerceMicroservices.slnx --configuration Release --no-restore
+        run: dotnet build ECommerceMicroservices/ECommerceMicroservices.slnx --configuration Release --no-restore
