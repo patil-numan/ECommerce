@@ -31,3 +31,9 @@ jobs:
 
       - name: Run tests
         run: dotnet test ECommerceMicroservices/ECommerceMicroservices.slnx --configuration Release --no-build
+
+      - name: Install Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
+          podman --version
