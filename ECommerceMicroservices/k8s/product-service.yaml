@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
         - name: product-service
-          image: localhost/ecommerce-product-service:latest
-          imagePullPolicy: Never
+          image: ghcr.io/patil-numan/ecommerce-product-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
 
