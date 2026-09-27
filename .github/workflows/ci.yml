@@ -82,3 +82,11 @@ jobs:
             -t localhost/ecommerce-api-gateway:ci \
             -f ECommerceMicroservices/ApiGateway/Containerfile \
             ECommerceMicroservices
+
+      - name: Push Product Service image
+        run: |
+          podman tag localhost/ecommerce-product-service:ci \
+            ghcr.io/${{ github.repository_owner }}/ecommerce-product-service:latest
+
+          podman push \
+            ghcr.io/${{ github.repository_owner }}/ecommerce-product-service:latest
