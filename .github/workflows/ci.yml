@@ -44,3 +44,31 @@ jobs:
             -t localhost/ecommerce-product-service:ci \
             -f ECommerceMicroservices/Services/ProductService/Containerfile \
             ECommerceMicroservices
+
+      - name: Build User Service image
+        run: |
+          podman build \
+            -t localhost/ecommerce-user-service:ci \
+            -f ECommerceMicroservices/Services/UserService/Containerfile \
+            ECommerceMicroservices
+
+      - name: Build Order Service image
+        run: |
+          podman build \
+            -t localhost/ecommerce-order-service:ci \
+            -f ECommerceMicroservices/Services/OrderService/Containerfile \
+            ECommerceMicroservices
+
+      - name: Build Payment Service image
+        run: |
+          podman build \
+            -t localhost/ecommerce-payment-service:ci \
+            -f ECommerceMicroservices/Services/PaymentService/Containerfile \
+            ECommerceMicroservices
+
+      - name: Build API Gateway image
+        run: |
+          podman build \
+            -t localhost/ecommerce-api-gateway:ci \
+            -f ECommerceMicroservices/ApiGateway/Containerfile \
+            ECommerceMicroservices
