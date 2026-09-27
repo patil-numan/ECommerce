@@ -90,3 +90,35 @@ jobs:
 
           podman push \
             ghcr.io/${{ github.repository_owner }}/ecommerce-product-service:latest
+
+      - name: Push User Service image
+        run: |
+          podman tag localhost/ecommerce-user-service:ci \
+            ghcr.io/${{ github.repository_owner }}/ecommerce-user-service:latest
+
+          podman push \
+            ghcr.io/${{ github.repository_owner }}/ecommerce-user-service:latest
+
+      - name: Push Order Service image
+        run: |
+          podman tag localhost/ecommerce-order-service:ci \
+            ghcr.io/${{ github.repository_owner }}/ecommerce-order-service:latest
+
+          podman push \
+            ghcr.io/${{ github.repository_owner }}/ecommerce-order-service:latest
+
+      - name: Push Payment Service image
+        run: |
+          podman tag localhost/ecommerce-payment-service:ci \
+            ghcr.io/${{ github.repository_owner }}/ecommerce-payment-service:latest
+
+          podman push \
+            ghcr.io/${{ github.repository_owner }}/ecommerce-payment-service:latest
+
+      - name: Push API Gateway image
+        run: |
+          podman tag localhost/ecommerce-api-gateway:ci \
+            ghcr.io/${{ github.repository_owner }}/ecommerce-api-gateway:latest
+
+          podman push \
+            ghcr.io/${{ github.repository_owner }}/ecommerce-api-gateway:latest
