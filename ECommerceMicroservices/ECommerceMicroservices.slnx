@@ -21,6 +21,7 @@
     <Project Path="Services/ProductService/ProductService.Application/ProductService.Application.csproj" />
     <Project Path="Services/ProductService/ProductService.Domain/ProductService.Domain.csproj" />
     <Project Path="Services/ProductService/ProductService.Infrastructure/ProductService.Infrastructure.csproj" />
+    <Project Path="Services/ProductService/ProductService.Tests/ProductService.Tests.csproj" />
   </Folder>
   <Folder Name="/Services/UserService/">
     <Project Path="Services/UserService/UserService.API/UserService.API.csproj" />

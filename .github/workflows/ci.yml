@@ -28,3 +28,6 @@ jobs:
 
       - name: Build solution
         run: dotnet build ECommerceMicroservices/ECommerceMicroservices.slnx --configuration Release --no-restore
+
+      - name: Run tests
+        run: dotnet test ECommerceMicroservices/ECommerceMicroservices.slnx --configuration Release --no-build
