@@ -37,3 +37,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y podman
           podman --version
+
+      - name: Build Product Service image
+        run: |
+          podman build \
+            -t localhost/ecommerce-product-service:ci \
+            -f ECommerceMicroservices/Services/ProductService/Containerfile \
+            ECommerceMicroservices
