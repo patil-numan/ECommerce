@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
         - name: order-service
-          image: localhost/ecommerce-order-service:latest
-          imagePullPolicy: Never
+          image: ghcr.io/patil-numan/ecommerce-order-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
 

@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
         - name: api-gateway
-          image: localhost/ecommerce-api-gateway:latest
-          imagePullPolicy: Never
+          image: ghcr.io/patil-numan/ecommerce-api-gateway:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
 

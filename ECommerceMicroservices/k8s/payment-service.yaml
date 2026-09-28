@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
         - name: payment-service
-          image: localhost/ecommerce-payment-service:latest
-          imagePullPolicy: Never
+          image: ghcr.io/patil-numan/ecommerce-payment-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
 
