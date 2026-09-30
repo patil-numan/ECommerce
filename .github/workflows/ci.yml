@@ -38,10 +38,11 @@ jobs:
           podman --version
 
       - name: Login to GitHub Container Registry
+        shell: pwsh
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io \
-            -u "${{ github.actor }}" \
-            --password-stdin
+          $env:GITHUB_TOKEN | podman login ghcr.io -u "${{ github.actor }}" --password-stdin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Product Service image
         run: |
