@@ -42,9 +42,9 @@ jobs:
       - name: Login to GitHub Container Registry
         shell: powershell
         run: |
-          $env:GITHUB_TOKEN | podman login ghcr.io -u "${{ github.actor }}" --password-stdin
+          $env:GHCR_TOKEN | podman login ghcr.io -u "${{ github.repository_owner }}" --password-stdin
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
 
       - name: Build Product Service image
         run: |
