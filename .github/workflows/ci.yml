@@ -117,3 +117,41 @@ jobs:
 
           podman push \
             ghcr.io/${{ github.repository_owner }}/ecommerce-api-gateway:latest
+
+  deploy:
+    needs: build
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify kubectl
+        shell: powershell
+        run: |
+          kubectl version --client
+
+      - name: Verify Minikube
+        shell: powershell
+        run: |
+          minikube status
+
+      - name: Deploy Kubernetes manifests
+        shell: powershell
+        run: |
+          kubectl apply -f ECommerceMicroservices/k8s/namespace.yaml
+          kubectl apply -f ECommerceMicroservices/k8s/configmap.yaml
+          kubectl apply -f ECommerceMicroservices/k8s/product-service.yaml
+          kubectl apply -f ECommerceMicroservices/k8s/user-service.yaml
+          kubectl apply -f ECommerceMicroservices/k8s/order-service.yaml
+          kubectl apply -f ECommerceMicroservices/k8s/payment-service.yaml
+          kubectl apply -f ECommerceMicroservices/k8s/api-gateway.yaml
+
+      - name: Check rollout status
+        shell: powershell
+        run: |
+          kubectl rollout status deployment/product-service -n ecommerce --timeout=120s
+          kubectl rollout status deployment/user-service -n ecommerce --timeout=120s
+          kubectl rollout status deployment/order-service -n ecommerce --timeout=120s
+          kubectl rollout status deployment/payment-service -n ecommerce --timeout=120s
+          kubectl rollout status deployment/api-gateway -n ecommerce --timeout=120s
