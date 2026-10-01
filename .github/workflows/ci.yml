@@ -18,11 +18,16 @@ on:
       - master
 jobs:
   build:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
 
       - name: Restore dependencies
         run: dotnet restore ECommerceMicroservices/ECommerceMicroservices.slnx
@@ -40,11 +45,11 @@ jobs:
           podman --version
 
       - name: Login to GitHub Container Registry
-        shell: powershell
+        if: github.event_name != 'pull_request'
         run: |
-          $env:GHCR_TOKEN | podman login ghcr.io -u "${{ github.repository_owner }}" --password-stdin
+          echo "$GHCR_TOKEN" | podman login ghcr.io -u "${{ github.actor }}" --password-stdin
         env:
-          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Product Service image
         run: |
@@ -82,6 +87,7 @@ jobs:
             ECommerceMicroservices
 
       - name: Push Product Service image
+        if: github.event_name != 'pull_request'
         run: |
           podman tag localhost/ecommerce-product-service:ci \
             ghcr.io/${{ github.repository_owner }}/ecommerce-product-service:latest
@@ -90,6 +96,7 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/ecommerce-product-service:latest
 
       - name: Push User Service image
+        if: github.event_name != 'pull_request'
         run: |
           podman tag localhost/ecommerce-user-service:ci \
             ghcr.io/${{ github.repository_owner }}/ecommerce-user-service:latest
@@ -98,6 +105,7 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/ecommerce-user-service:latest
 
       - name: Push Order Service image
+        if: github.event_name != 'pull_request'
         run: |
           podman tag localhost/ecommerce-order-service:ci \
             ghcr.io/${{ github.repository_owner }}/ecommerce-order-service:latest
@@ -106,6 +114,7 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/ecommerce-order-service:latest
 
       - name: Push Payment Service image
+        if: github.event_name != 'pull_request'
         run: |
           podman tag localhost/ecommerce-payment-service:ci \
             ghcr.io/${{ github.repository_owner }}/ecommerce-payment-service:latest
@@ -114,6 +123,7 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/ecommerce-payment-service:latest
 
       - name: Push API Gateway image
+        if: github.event_name != 'pull_request'
         run: |
           podman tag localhost/ecommerce-api-gateway:ci \
             ghcr.io/${{ github.repository_owner }}/ecommerce-api-gateway:latest
